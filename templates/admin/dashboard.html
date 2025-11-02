@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+  <h1 class="text-3xl font-bold text-yellow-400">Panel Admin</h1>
+  <div class="flex flex-wrap gap-3">
+    <a href="/admin/games" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">Ver juegos</a>
+    <a href="/admin/games/new" class="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded">Agregar juego</a>
+    <a href="/admin/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">Cerrar sesión</a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+  <div class="bg-[#1a1a1d] p-6 rounded-lg text-center shadow">
+    <p class="text-gray-400">Total de Juegos</p>
+    <p class="text-4xl font-extrabold text-white">{{ total_games }}</p>
+  </div>
+  <div class="bg-[#1a1a1d] p-6 rounded-lg text-center shadow">
+    <p class="text-gray-400">Publicados</p>
+    <p class="text-4xl font-extrabold text-green-400">{{ published }}</p>
+  </div>
+  <div class="bg-[#1a1a1d] p-6 rounded-lg text-center shadow">
+    <p class="text-gray-400">Ocultos</p>
+    <p class="text-4xl font-extrabold text-red-400">{{ unpublished }}</p>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GameLinkBo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style> body{background:#0e0e10;color:#f4f4f5} </style>
+</head>
+<body class="font-sans">
+  <header class="bg-[#1e1e22] shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto flex justify-between items-center py-4 px-6">
+      <a href="/" class="text-yellow-400 text-2xl font-bold tracking-tight hover:text-yellow-300">🎮 GameLinkBo</a>
+      <nav class="space-x-4 text-gray-200">
+        <a href="/games" class="hover:text-yellow-400">Catálogo</a>
+        {% if session.user_id %}
+          <a href="/admin/dashboard" class="hover:text-yellow-400">Panel</a>
+          <a href="/admin/games" class="hover:text-yellow-400">Juegos</a>
+          <a href="/admin/logout" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">Salir</a>
+        {% else %}
+          <a href="/admin/login" class="hover:text-yellow-400">Admin</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto py-10 px-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="mb-4 p-3 rounded text-sm
+            {% if category=='error' %}bg-red-700{% elif category=='success' %}bg-green-700{% else %}bg-gray-700{% endif %}">
+            {{ msg }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bg-[#1e1e22] py-6 text-center text-sm text-gray-400 border-t border-gray-800">
+    © 2025 GameLinkBo — Todos los derechos reservados
+  </footer>
+</body>
+</html>

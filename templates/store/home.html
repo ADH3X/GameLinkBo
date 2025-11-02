@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-8 text-yellow-400">Novedades</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+  {% for g in games %}
+  <a href="/game/{{ g.slug }}" class="bg-[#1a1a1d] p-4 rounded-lg shadow hover:shadow-yellow-500/30 hover:-translate-y-1 transition transform">
+    {% if g.cover %}
+      <img src="/{{ g.cover }}" alt="{{ g.title }}" class="rounded-md mb-3 w-full h-52 object-cover">
+    {% else %}
+      <div class="bg-gray-800 h-52 flex items-center justify-center text-gray-500">Sin imagen</div>
+    {% endif %}
+    <h3 class="text-lg font-semibold">{{ g.title }}</h3>
+    {% if g.discount_pct > 0 %}
+      <p class="text-yellow-400 text-sm">-{{ g.discount_pct|int }}% OFF</p>
+    {% endif %}
+    <p class="text-white font-bold text-lg">Bs {{ "%.2f"|format(g.base_price) }}</p>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}
