@@ -15,7 +15,7 @@ ADMINS = [
     ("CarlFranxx", "C@rlXx2025_#Admin"),
 ]
 
-DEFAULT_WHATSAPP = "59170000000"
+DEFAULT_WHATSAPP = "59177676446"
 
 UPLOAD_ORIG = BASE_DIR / "static" / "uploads" / "originals"
 UPLOAD_THUM = BASE_DIR / "static" / "uploads" / "thumbs"
@@ -246,3 +246,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
