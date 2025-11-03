@@ -7,7 +7,9 @@ from flask import (
     session, flash, abort, send_from_directory
 )
 from slugify import slugify
-
+from flask import send_from_directory
+from pathlib import Path
+import os
 # =============================
 # CONFIG
 # =============================
@@ -125,6 +127,11 @@ def admin_logout():
 # =============================
 # ADMIN — DASH, LISTA, CREAR, EDITAR, IMÁGENES
 # =============================
+DATA_DIR = Path(os.getenv("DATA_DIR", "/var/tmp"))
+
+@app.route("/media/<path:filename>")
+def media(filename):
+    return send_from_directory(DATA_DIR / "uploads", filename)
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
