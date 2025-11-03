@@ -28,6 +28,61 @@ os.makedirs(THUM_DIR, exist_ok=True)
 app = Flask(__name__)
 app.secret_key = "cambia-esto-en-produccion"
 
+
+
+# --- Bootstrap mínimo para producción ---
+import os, sqlite3, pathlib
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "market.db"))
+
+def open_db():
+    con = sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA foreign_keys = ON;")
+    return con
+
+def bootstrap():
+    con = open_db()
+    cur = con.cursor()
+
+    # tablas base (solo las necesarias para el FK)
+    cur.executescript("""
+    CREATE TABLE IF NOT EXISTS platforms (
+      id   TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS genres (
+      id   TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+    """)
+
+    # seeds idempotentes
+    cur.executemany("INSERT OR IGNORE INTO platforms(id,name) VALUES(?,?)", [
+        ("plat_steam","Steam"),
+        ("plat_ps","PlayStation"),
+        ("plat_xbox","Xbox"),
+        ("plat_switch","Switch"),
+        ("plat_pc","PC"),
+    ])
+    cur.executemany("INSERT OR IGNORE INTO genres(id,name) VALUES(?,?)", [
+        ("gen_acc","Acción"),
+        ("gen_adv","Aventura"),
+        ("gen_rpg","RPG"),
+        ("gen_sho","Shooter"),
+        ("gen_ind","Indie"),
+        ("gen_spo","Deportes"),
+        ("gen_str","Estrategia"),
+    ])
+
+    con.commit()
+    con.close()
+
+# Lánzalo al inicio del proceso
+bootstrap()
+
+
 # =============================
 # DB
 # =============================
