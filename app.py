@@ -155,6 +155,57 @@ def login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+
+def file_safe_delete(path_str: str):
+    """
+    Borra un archivo si existe (ignora errores).
+    path_str puede venir como 'static/uploads/originals/xxx.jpg'
+    o 'static\\uploads\\originals\\xxx.jpg' — normalizamos.
+    """
+    try:
+        if not path_str:
+            return
+        p = BASE_DIR / pathlib.Path(path_str)
+        if p.exists() and p.is_file():
+            p.unlink(missing_ok=True)
+    except Exception:
+        pass  # no romper el flujo por un archivo
+
+def delete_game_files(db, game_id: str):
+    """
+    Elimina del disco todas las imágenes asociadas al juego (covers y thumbs).
+    Luego, al borrar el juego, las filas de game_images y game_genres
+    se van por ON DELETE CASCADE.
+    """
+    cur = db.execute(
+        "SELECT file_path, thumb_path FROM game_images WHERE game_id=?",
+        (game_id,)
+    )
+    for row in cur.fetchall():
+        file_safe_delete(row["file_path"])
+        file_safe_delete(row["thumb_path"])
+
+# Ruta: POST /admin/games/<id>/delete
+@app.post("/admin/games/<game_id>/delete")
+def admin_delete_game(game_id):
+    # Seguridad básica: requiere login admin
+    if not session.get("user_id"):
+        flash("Inicia sesión.", "error")
+        return redirect(url_for("admin_login"))
+
+    db = get_db()  # usa tu helper real; si tu helper es distinto, cámbialo
+    # IMPORTANTE: asegurarse foreign_keys ON
+    db.execute("PRAGMA foreign_keys = ON;")
+
+    # 1) borrar archivos de imágenes en disco
+    delete_game_files(db, game_id)
+
+    # 2) borrar el juego (esto dispara ON DELETE CASCADE en tablas hijas)
+    db.execute("DELETE FROM games WHERE id=?", (game_id,))
+    db.commit()
+
+    flash("Juego eliminado correctamente.", "success")
+    return redirect(url_for("admin_games"))
 # =============================
 # AUTH
 # =============================

@@ -1,31 +1,81 @@
 {% extends "layout.html" %}
 {% block content %}
+
 <div class="flex flex-col md:flex-row gap-8">
+
+  <!-- IMAGEN PRINCIPAL -->
   <div class="md:w-1/2">
     {% if images %}
-      <img src="/{{ images[0].file_path }}" class="rounded-lg shadow-lg w-full h-[420px] object-cover">
+      <img src="/{{ images[0].file_path }}" 
+           class="rounded-lg shadow-lg w-full h-[420px] object-cover">
     {% else %}
-      <div class="bg-gray-800 h-[420px] flex items-center justify-center text-gray-500 rounded-lg">Sin imagen</div>
+      <div class="bg-gray-800 h-[420px] flex items-center justify-center text-gray-500 rounded-lg">
+        Sin imagen
+      </div>
     {% endif %}
   </div>
 
+  <!-- INFORMACIÓN DEL JUEGO -->
   <div class="md:w-1/2 space-y-4">
-    <h1 class="text-3xl font-bold text-yellow-400">{{ game.title }}</h1>
-    <p class="text-gray-400">{{ game.platform_name }}</p>
-    <p class="text-lg text-gray-300 leading-relaxed">{{ game.description }}</p>
+
+    <h1 class="text-3xl font-bold text-yellow-400">
+      {{ game.title }}
+    </h1>
+
+    <p class="text-gray-400">
+      {{ game.platform_name }}
+    </p>
+
+    <p class="text-lg text-gray-300 leading-relaxed">
+      {{ game.description }}
+    </p>
 
     <div class="text-2xl font-bold text-white">
       Bs {{ "%.2f"|format(game.base_price) }}
+      
       {% if game.discount_pct > 0 %}
-        <span class="ml-2 text-yellow-400 text-sm">-{{ game.discount_pct|int }}% OFF</span>
+        <span class="ml-2 text-yellow-400 text-sm">
+          -{{ game.discount_pct|int }}% OFF
+        </span>
       {% endif %}
     </div>
 
-    <a href="{{ wa_link }}" target="_blank" 
-       class="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition">
+    <!-- BOTÓN WHATSAPP -->
+    <a href="{{ wa_link }}" target="_blank"
+       class="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 
+              text-white px-6 py-3 rounded-lg font-semibold transition">
       <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="24">
       Comprar por WhatsApp
     </a>
+
   </div>
 </div>
+
+
+
+<!-- ✅ BLOQUE DE BENEFICIOS + HORARIOS -->
+<div class="mt-12 p-6 rounded-xl bg-[#1a1a1d] border border-[#2a2a2d] shadow-lg">
+
+  <h2 class="text-2xl font-bold text-yellow-400 mb-4">
+    Beneficios para Usuarios
+  </h2>
+
+  <p class="text-gray-300 leading-relaxed mb-6">
+    • Por cada persona que invites y compre un juego, ganas un 
+    <span class="text-yellow-400 font-semibold">5% de descuento</span>.<br>
+    • Si invitas a 20 personas, obtienes un 
+    <span class="text-yellow-400 font-semibold">100% de descuento</span> en cualquier juego.
+  </p>
+
+  <h2 class="text-2xl font-bold text-yellow-400 mb-4">
+    Horarios de Atención
+  </h2>
+
+  <p class="text-gray-300 leading-relaxed">
+    • Lunes a Viernes: <span class="font-semibold">9:00 AM – 5:00 PM</span><br>
+    • Sábado: <span class="font-semibold">9:00 AM – 2:00 PM</span>
+  </p>
+
+</div>
+
 {% endblock %}

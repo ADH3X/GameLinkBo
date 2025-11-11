@@ -1,45 +1,111 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GameLinkBo</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
-  <style> body{background:#0e0e10;color:#f4f4f5} </style>
+
+  <style>
+    body {
+      background: #0c0c0e;
+      color: #f4f4f5;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Efecto elegante para el header */
+    .glass-nav {
+      background: rgba(20,20,22,0.85);
+      backdrop-filter: blur(12px);
+    }
+  </style>
 </head>
-<body class="font-sans">
-  <header class="bg-[#1e1e22] shadow-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto flex justify-between items-center py-4 px-6">
-      <a href="/" class="text-yellow-400 text-2xl font-bold tracking-tight hover:text-yellow-300">🎮 GameLinkBo</a>
-      <nav class="space-x-4 text-gray-200">
-        <a href="/games" class="hover:text-yellow-400">Catálogo</a>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="glass-nav shadow-lg sticky top-0 z-50 border-b border-[#1e1e22]">
+    <div class="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
+
+      <!-- LEFT SECTION -->
+      <div class="flex items-center gap-6">
+
+        <!-- LOGO -->
+        <a href="/" class="flex items-center gap-3 group">
+          <img src="/static/uploads/logo/gamelinkbo.png" class="w-11 h-11 object-contain">
+          <span class="text-white text-2xl font-extrabold tracking-tight group-hover:text-yellow-400 transition">
+            GameLinkBo
+          </span>
+        </a>
+
+        <!-- NAV DESKTOP -->
+        <nav class="hidden md:flex items-center gap-6 text-gray-300 text-[15px]">
+          <a href="/games" class="hover:text-yellow-400 transition font-semibold">Catálogo</a>
+
+          {% if session.user_id %}
+            <a href="/admin/dashboard" class="hover:text-yellow-400 transition">Panel</a>
+            <a href="/admin/games" class="hover:text-yellow-400 transition">Juegos</a>
+          {% endif %}
+        </nav>
+
+      </div>
+
+      <!-- SEARCH BAR (DESKTOP) -->
+      <form action="/games" method="get" class="hidden md:block w-1/3">
+        <input 
+          type="text"
+          name="q"
+          placeholder="Buscar juegos..."
+          class="w-full px-4 py-2.5 rounded-lg bg-[#1b1b20] text-gray-200 
+                 border border-gray-700 focus:ring-2 focus:ring-yellow-500 outline-none"
+        >
+      </form>
+
+      <!-- RIGHT SECTION -->
+      <div class="flex items-center gap-5">
+
         {% if session.user_id %}
-          <a href="/admin/dashboard" class="hover:text-yellow-400">Panel</a>
-          <a href="/admin/games" class="hover:text-yellow-400">Juegos</a>
-          <a href="/admin/logout" class="bg-red-600 px-3 py-1 rounded hover:bg-red-700">Salir</a>
+          <a href="/admin/logout" class="bg-red-600 px-4 py-1.5 rounded font-semibold text-white hover:bg-red-700 transition">
+            Salir
+          </a>
         {% else %}
-          <a href="/admin/login" class="hover:text-yellow-400">Admin</a>
+          <a href="/admin/login" class="text-gray-300 hover:text-yellow-400 transition font-semibold">
+            Admin
+          </a>
         {% endif %}
-      </nav>
+
+      </div>
+
     </div>
   </header>
 
+
+  <!-- MAIN CONTENT -->
   <main class="max-w-7xl mx-auto py-10 px-6">
+
+    <!-- FLASH MESSAGES -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, msg in messages %}
           <div class="mb-4 p-3 rounded text-sm
-            {% if category=='error' %}bg-red-700{% elif category=='success' %}bg-green-700{% else %}bg-gray-700{% endif %}">
+            {% if category == 'error' %}bg-red-700
+            {% elif category == 'success' %}bg-green-700
+            {% else %}bg-gray-700{% endif %}">
             {{ msg }}
           </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="bg-[#1e1e22] py-6 text-center text-sm text-gray-400 border-t border-gray-800">
+
+  <!-- FOOTER -->
+  <footer class="glass-nav py-6 text-center text-sm text-gray-500 border-t border-[#1e1e22]">
     © 2025 GameLinkBo — Todos los derechos reservados
   </footer>
+
 </body>
 </html>

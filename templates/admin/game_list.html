@@ -8,23 +8,44 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {% for g in games %}
   <div class="bg-[#1a1a1d] p-4 rounded-lg shadow">
+    
     {% if g.cover %}
       <img src="/{{ g.cover }}" class="rounded mb-3 w-full h-48 object-cover">
     {% else %}
       <div class="bg-gray-800 h-48 flex items-center justify-center text-gray-500 rounded">Sin imagen</div>
     {% endif %}
+
     <h3 class="text-lg font-semibold">{{ g.title }}</h3>
     <p class="text-sm text-gray-400">{{ g.platform_name }}</p>
     <p class="text-white font-bold">Bs {{ "%.2f"|format(g.base_price) }}</p>
+
     <div class="flex items-center gap-2 mt-3">
+
+      <!-- Publicar / Ocultar -->
       <form method="post" action="/admin/games/{{ g.id }}/publish">
         <button class="px-3 py-1 rounded text-sm
           {% if g.is_published %}bg-green-600 hover:bg-green-700{% else %}bg-gray-600 hover:bg-gray-700{% endif %}">
           {% if g.is_published %}Ocultar{% else %}Publicar{% endif %}
         </button>
       </form>
-      <a href="/admin/games/{{ g.id }}/edit" class="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700">Editar</a>
+
+      <!-- Editar -->
+      <a href="/admin/games/{{ g.id }}/edit"
+         class="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700">
+        Editar
+      </a>
+
+      <!-- ELIMINAR -->
+      <form method="post"
+            action="/admin/games/{{ g.id }}/delete"
+            onsubmit="return confirm('¿Seguro que quieres eliminar {{ g.title }}? Esta acción no se puede deshacer');">
+        <button class="px-3 py-1 rounded text-sm bg-red-600 hover:bg-red-700">
+          Eliminar
+        </button>
+      </form>
+
     </div>
+
   </div>
   {% endfor %}
 </div>

@@ -1,27 +1,43 @@
 {% extends "layout.html" %}
 {% block content %}
-<h1 class="text-3xl font-bold mb-8 text-yellow-400">Catálogo</h1>
 
-<form method="get" class="flex gap-2 mb-8">
-  <input type="text" name="q" placeholder="Buscar juego..." value="{{ q }}" 
-         class="flex-1 px-3 py-2 rounded bg-[#1e1e22] text-gray-200 border border-gray-700 focus:outline-none focus:ring focus:ring-yellow-500">
-  <button class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-5 py-2 rounded">Buscar</button>
+<h1 class="text-3xl font-extrabold mb-10 text-yellow-400">Catálogo</h1>
+
+<form method="get" class="flex gap-3 mb-10">
+  <input type="text" name="q" placeholder="Buscar juego..." value="{{ q }}"
+         class="flex-1 px-4 py-2 rounded-lg bg-[#1d1d20] text-gray-200 border border-gray-700 focus:ring focus:ring-yellow-500 outline-none">
+  <button class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-2 rounded-lg">
+    Buscar
+  </button>
 </form>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+
   {% for g in games %}
-  <a href="/game/{{ g.slug }}" class="bg-[#1a1a1d] p-4 rounded-lg shadow hover:shadow-yellow-500/30 hover:-translate-y-1 transition transform">
+  <a href="/game/{{ g.slug }}"
+     class="bg-[#18181b] p-4 rounded-xl shadow-lg border border-[#232326]
+            hover:border-yellow-500 hover:shadow-yellow-500/20
+            hover:-translate-y-1 transition duration-200 block">
+
     {% if g.cover %}
-      <img src="/{{ g.cover }}" alt="{{ g.title }}" class="rounded-md mb-3 w-full h-52 object-cover">
+      <img src="/{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4">
     {% else %}
-      <div class="bg-gray-800 h-52 flex items-center justify-center text-gray-500">Sin imagen</div>
+      <div class="bg-gray-800 rounded-lg w-full h-60 flex justify-center items-center text-gray-500">
+        Sin imagen
+      </div>
     {% endif %}
-    <h3 class="text-lg font-semibold">{{ g.title }}</h3>
+
+    <h3 class="text-xl font-semibold mb-1">{{ g.title }}</h3>
+
     {% if g.discount_pct > 0 %}
-      <p class="text-yellow-400 text-sm">-{{ g.discount_pct|int }}% OFF</p>
+      <p class="text-yellow-400 text-sm font-bold">-{{ g.discount_pct|int }}% OFF</p>
     {% endif %}
+
     <p class="text-white font-bold text-lg">Bs {{ "%.2f"|format(g.base_price) }}</p>
+
   </a>
   {% endfor %}
+
 </div>
+
 {% endblock %}
