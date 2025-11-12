@@ -6,8 +6,6 @@
 from __future__ import annotations
 import os, uuid, datetime, sys, pathlib
 import bcrypt
-# ----------------- FLAGS -----------------
-DISABLE_FTS = os.getenv("DISABLE_FTS", "0") == "1"
 
 # ----------------- DETECCIÓN ENTORNO / RUTAS ESCRIBIBLES -----------------
 BASE_DIR = pathlib.Path(__file__).resolve().parent
@@ -230,24 +228,13 @@ INSERT INTO games_fts(rowid, title, description)
 def exec_schema(con: sqlite3.Connection):
     con.executescript(SCHEMA_BASE)
     # Intento de FTS5
-    # Si está forzado, no intentes FTS y deja LIKE fijo
-    if DISABLE_FTS:
-        print("[i] FTS5 desactivado por entorno. Usando LIKE.")
-        con.execute(
-            "INSERT INTO settings(key,value) VALUES('search_engine','like') "
-            "ON CONFLICT(key) DO UPDATE SET value='like'"
-        )
-        return
     try:
         con.executescript(SCHEMA_FTS)
         con.execute("UPDATE settings SET value='fts' WHERE key='search_engine'")
         print("[+] Búsqueda FTS5 activa.")
     except sqlite3.Error as e:
         print("[!] FTS5 no disponible, usando búsqueda simple (LIKE). Detalle:", e)
-        con.execute(
-            "INSERT INTO settings(key,value) VALUES('search_engine','like') "
-            "ON CONFLICT(key) DO UPDATE SET value='like'"
-        )
+
 def upsert_setting(con: sqlite3.Connection, key: str, value: str):
     con.execute(
         "INSERT INTO settings(key,value) VALUES(?,?) "

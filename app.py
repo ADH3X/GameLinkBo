@@ -1,75 +1,94 @@
 # app.py — Catálogo + Panel Admin con subida de imágenes (Flask + SQLite + Pillow)
-
-import os, sqlite3, uuid, bcrypt, datetime, pathlib
+import os, sqlite3, uuid, bcrypt, datetime
+from io import BytesIO
 from PIL import Image
 from flask import (
     Flask, render_template, g, request, redirect, url_for,
     session, flash, abort, send_from_directory
 )
 from slugify import slugify
+from flask import send_from_directory
 from pathlib import Path
-
+import os
 # =============================
-# CONFIG (alineado con init.py)
+# CONFIG
 # =============================
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+DB_PATH      = os.path.join(BASE_DIR, "market.db")
+STATIC_DIR   = os.path.join(BASE_DIR, "static")
+UPLOADS_DIR  = os.path.join(STATIC_DIR, "uploads")
+ORIG_DIR     = os.path.join(UPLOADS_DIR, "originals")
+THUM_DIR     = os.path.join(UPLOADS_DIR, "thumbs")
+ALLOWED_EXT  = {".jpg", ".jpeg", ".png", ".webp"}
+THUMB_SIZE   = (512, 512)
 
-# Usa las mismas ENV que init.py
-DB_PATH      = Path(os.getenv("MARKET_DB_PATH", str(BASE_DIR / "market.db")))
-UPLOAD_DIR   = Path(os.getenv("UPLOAD_DIR",      str(BASE_DIR / "uploads")))
-ORIG_DIR     = UPLOAD_DIR / "originals"
-THUM_DIR     = UPLOAD_DIR / "thumbs"
-UPLOAD_URL_PREFIX = "/uploads"  # las imágenes se servirán en /uploads/...
-
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
-THUMB_SIZE  = (512, 512)
-
-ORIG_DIR.mkdir(parents=True, exist_ok=True)
-THUM_DIR.mkdir(parents=True, exist_ok=True)
+os.makedirs(ORIG_DIR, exist_ok=True)
+os.makedirs(THUM_DIR, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET", "cambia-esto-en-produccion")
-
-# --- usar la misma DB que init.py ---
-import init as initdb  # importa tu init.py
-from pathlib import Path
-
-DB_PATH = str(initdb.DB_PATH)   # MISMA ruta que usa init.py
-
-# ===============
-# Init de esquema
-# ===============
-# Ejecuta init.py de forma idempotente para asegurar tablas/ajustes.
-try:
-    import init as initdb
-    initdb.main()
-except Exception as e:
-    print("[init] aviso (continuo de todos modos):", e)
+app.secret_key = "cambia-esto-en-produccion"
 
 
-import sqlite3
 
-def ensure_schema():
-    # crea carpetas que usa init.py
-    initdb.ensure_dirs()
-    con = sqlite3.connect(str(initdb.DB_PATH))
-    try:
-        con.execute("PRAGMA foreign_keys=ON;")
-        con.execute("SELECT 1 FROM games LIMIT 1;")   # si falla, no existe la tabla
-    except sqlite3.Error:
-        # inicializa TODO el esquema y admins
-        initdb.main()
-    finally:
-        con.close()
+# --- Bootstrap mínimo para producción ---
+import os, sqlite3, pathlib
 
-ensure_schema()
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "market.db"))
+
+def open_db():
+    con = sqlite3.connect(DB_PATH)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA foreign_keys = ON;")
+    return con
+
+def bootstrap():
+    con = open_db()
+    cur = con.cursor()
+
+    # tablas base (solo las necesarias para el FK)
+    cur.executescript("""
+    CREATE TABLE IF NOT EXISTS platforms (
+      id   TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS genres (
+      id   TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+    """)
+
+    # seeds idempotentes
+    cur.executemany("INSERT OR IGNORE INTO platforms(id,name) VALUES(?,?)", [
+        ("plat_steam","Steam"),
+        ("plat_ps","PlayStation"),
+        ("plat_xbox","Xbox"),
+        ("plat_switch","Switch"),
+        ("plat_pc","PC"),
+    ])
+    cur.executemany("INSERT OR IGNORE INTO genres(id,name) VALUES(?,?)", [
+        ("gen_acc","Acción"),
+        ("gen_adv","Aventura"),
+        ("gen_rpg","RPG"),
+        ("gen_sho","Shooter"),
+        ("gen_ind","Indie"),
+        ("gen_spo","Deportes"),
+        ("gen_str","Estrategia"),
+    ])
+
+    con.commit()
+    con.close()
+
+# Lánzalo al inicio del proceso
+bootstrap()
+
 
 # =============================
 # DB
 # =============================
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(str(DB_PATH))
+        g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON;")
     return g.db
@@ -81,7 +100,7 @@ def close_db(exception=None):
         db.close()
 
 # =============================
-# Helpers
+# HELPERS
 # =============================
 def now_iso():
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat()
@@ -95,39 +114,37 @@ def allowed_file(filename: str) -> bool:
 
 def save_image(file_storage, slug: str):
     """
-    Guarda original en UPLOAD_DIR/originals y genera thumbnail 512x512 en UPLOAD_DIR/thumbs.
-    Retorna rutas RELATIVAS para la web: ('uploads/originals/xxx.jpg', 'uploads/thumbs/xxx.jpg')
-    (El template las usa como src="/<ruta>").
+    Guarda original y genera thumbnail 512x512 recortado al centro.
+    Retorna (file_path_rel, thumb_path_rel).
     """
-    filename = file_storage.filename or ""
+    filename = file_storage.filename
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXT:
         raise ValueError("Formato no permitido")
 
     uid = uuid.uuid4().hex
     base_name = f"{slug}-{uid}{ext}"
-
-    orig_abs = ORIG_DIR / base_name
-    thum_abs = THUM_DIR / base_name
+    orig_rel  = f"static/uploads/originals/{base_name}"
+    thum_rel  = f"static/uploads/thumbs/{base_name}"
+    orig_abs  = os.path.join(BASE_DIR, orig_rel)
+    thum_abs  = os.path.join(BASE_DIR, thum_rel)
 
     # Guardar original
-    file_storage.save(str(orig_abs))
+    file_storage.save(orig_abs)
 
-    # Crear thumb cuadrado centrado
-    with Image.open(str(orig_abs)) as im:
+    # Abrir con Pillow y generar thumb cuadrado centrado
+    with Image.open(orig_abs) as im:
         im = im.convert("RGB")
+        # recorte centrado a cuadrado
         w, h = im.size
         side = min(w, h)
         left = (w - side) // 2
         top  = (h - side) // 2
         im = im.crop((left, top, left + side, top + side))
         im = im.resize(THUMB_SIZE, Image.Resampling.LANCZOS)
-        im.save(str(thum_abs), format="JPEG", quality=90)
+        im.save(thum_abs, format="JPEG", quality=90)
 
-    # Rutas relativas expuestas por /uploads/<path>
-    orig_rel = f"uploads/originals/{base_name}"
-    thum_rel = f"uploads/thumbs/{base_name}"
-    return orig_rel, thum_rel
+    return orig_rel.replace("\\", "/"), thum_rel.replace("\\", "/")
 
 def login_required(fn):
     from functools import wraps
@@ -138,26 +155,28 @@ def login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-def file_safe_delete(rel_path: str):
+
+def file_safe_delete(path_str: str):
     """
     Borra un archivo si existe (ignora errores).
-    rel_path viene como 'uploads/originals/xxx.jpg' => mapea a UPLOAD_DIR/...
+    path_str puede venir como 'static/uploads/originals/xxx.jpg'
+    o 'static\\uploads\\originals\\xxx.jpg' — normalizamos.
     """
     try:
-        if not rel_path:
+        if not path_str:
             return
-        # normaliza separadores
-        rel_path = rel_path.replace("\\", "/")
-        if not rel_path.startswith("uploads/"):
-            return
-        sub = rel_path.split("uploads/", 1)[1]
-        abs_path = UPLOAD_DIR / sub
-        if abs_path.exists() and abs_path.is_file():
-            abs_path.unlink(missing_ok=True)
+        p = BASE_DIR / pathlib.Path(path_str)
+        if p.exists() and p.is_file():
+            p.unlink(missing_ok=True)
     except Exception:
-        pass
+        pass  # no romper el flujo por un archivo
 
 def delete_game_files(db, game_id: str):
+    """
+    Elimina del disco todas las imágenes asociadas al juego (covers y thumbs).
+    Luego, al borrar el juego, las filas de game_images y game_genres
+    se van por ON DELETE CASCADE.
+    """
     cur = db.execute(
         "SELECT file_path, thumb_path FROM game_images WHERE game_id=?",
         (game_id,)
@@ -166,13 +185,27 @@ def delete_game_files(db, game_id: str):
         file_safe_delete(row["file_path"])
         file_safe_delete(row["thumb_path"])
 
-# =============================
-# Static de uploads persistentes
-# =============================
-@app.route(f"{UPLOAD_URL_PREFIX}/<path:filename>")
-def serve_uploads(filename):
-    return send_from_directory(str(UPLOAD_DIR), filename)
+# Ruta: POST /admin/games/<id>/delete
+@app.post("/admin/games/<game_id>/delete")
+def admin_delete_game(game_id):
+    # Seguridad básica: requiere login admin
+    if not session.get("user_id"):
+        flash("Inicia sesión.", "error")
+        return redirect(url_for("admin_login"))
 
+    db = get_db()  # usa tu helper real; si tu helper es distinto, cámbialo
+    # IMPORTANTE: asegurarse foreign_keys ON
+    db.execute("PRAGMA foreign_keys = ON;")
+
+    # 1) borrar archivos de imágenes en disco
+    delete_game_files(db, game_id)
+
+    # 2) borrar el juego (esto dispara ON DELETE CASCADE en tablas hijas)
+    db.execute("DELETE FROM games WHERE id=?", (game_id,))
+    db.commit()
+
+    flash("Juego eliminado correctamente.", "success")
+    return redirect(url_for("admin_games"))
 # =============================
 # AUTH
 # =============================
@@ -200,6 +233,11 @@ def admin_logout():
 # =============================
 # ADMIN — DASH, LISTA, CREAR, EDITAR, IMÁGENES
 # =============================
+DATA_DIR = Path(os.getenv("DATA_DIR", "/var/tmp"))
+
+@app.route("/media/<path:filename>")
+def media(filename):
+    return send_from_directory(DATA_DIR / "uploads", filename)
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -358,22 +396,6 @@ def admin_games_publish(game_id):
     flash("Estado actualizado", "success")
     return redirect(url_for("admin_games"))
 
-# Eliminar imagen individual
-@app.post("/admin/images/<img_id>/delete")
-@login_required
-def admin_image_delete(img_id):
-    db = get_db()
-    row = db.execute("SELECT game_id, file_path, thumb_path FROM game_images WHERE id=?", (img_id,)).fetchone()
-    if not row:
-        abort(404)
-    db.execute("DELETE FROM game_images WHERE id=?", (img_id,))
-    db.commit()
-    for p in (row["file_path"], row["thumb_path"]):
-        file_safe_delete(p)
-    flash("Imagen eliminada", "success")
-    return redirect(url_for("admin_games_edit", game_id=row["game_id"]))
-
-# Marcar portada
 @app.post("/admin/images/<img_id>/cover")
 @login_required
 def admin_image_set_cover(img_id):
@@ -388,16 +410,25 @@ def admin_image_set_cover(img_id):
     flash("Portada actualizada", "success")
     return redirect(url_for("admin_games_edit", game_id=game_id))
 
-# Eliminar juego (con borrado físico de archivos)
-@app.post("/admin/games/<game_id>/delete")
+@app.post("/admin/images/<img_id>/delete")
 @login_required
-def admin_delete_game(game_id):
+def admin_image_delete(img_id):
     db = get_db()
-    delete_game_files(db, game_id)
-    db.execute("DELETE FROM games WHERE id=?", (game_id,))
+    row = db.execute("SELECT game_id, file_path, thumb_path FROM game_images WHERE id=?", (img_id,)).fetchone()
+    if not row:
+        abort(404)
+    db.execute("DELETE FROM game_images WHERE id=?", (img_id,))
     db.commit()
-    flash("Juego eliminado correctamente.", "success")
-    return redirect(url_for("admin_games"))
+    # borrar archivos físicos (si existen)
+    for p in (row["file_path"], row["thumb_path"]):
+        abs_p = os.path.join(BASE_DIR, p)
+        try:
+            if os.path.exists(abs_p):
+                os.remove(abs_p)
+        except Exception:
+            pass
+    flash("Imagen eliminada", "success")
+    return redirect(url_for("admin_games_edit", game_id=row["game_id"]))
 
 # =============================
 # STORE PÚBLICO
@@ -421,9 +452,10 @@ def catalog():
     q = request.args.get("q", "").strip()
     platform = request.args.get("platform")
 
-    # Motor de búsqueda elegido por init.py (fts | like)
-    row = db.execute("SELECT value FROM settings WHERE key='search_engine'").fetchone()
-    search_engine = row["value"] if row else "like"
+    # ¿Hay FTS?
+    search_engine = db.execute(
+        "SELECT value FROM settings WHERE key='search_engine'"
+    ).fetchone()["value"]
 
     base_sql = """
         SELECT g.id, g.slug, g.title, g.base_price, g.discount_pct,
@@ -450,6 +482,7 @@ def catalog():
     games = db.execute(base_sql, params).fetchall()
     return render_template("store/catalog.html", games=games, q=q, platform=platform)
 
+
 @app.route("/game/<slug>")
 def game_detail(slug):
     db = get_db()
@@ -460,23 +493,19 @@ def game_detail(slug):
     """, (slug,)).fetchone()
     if not game:
         abort(404)
-
     images = db.execute("""
         SELECT id, file_path, thumb_path, is_cover
         FROM game_images WHERE game_id=? ORDER BY is_cover DESC, order_idx ASC
     """, (game["id"],)).fetchall()
-
     wa = game["whatsapp_override"] or db.execute(
         "SELECT value FROM settings WHERE key='whatsapp_number'"
     ).fetchone()["value"]
     msg = f"Hola, quiero comprar {game['title']} ({game['platform_name']})"
     wa_link = f"https://wa.me/{wa}?text={msg.replace(' ', '%20')}"
-
     return render_template("store/game_detail.html", game=game, images=images, wa_link=wa_link)
 
 # =============================
 # RUN
 # =============================
 if __name__ == "__main__":
-    # Para desarrollo local
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(debug=True)
