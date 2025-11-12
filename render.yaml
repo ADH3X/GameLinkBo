@@ -3,7 +3,7 @@ services:
     name: gamelinkbo
     env: python
     buildCommand: ""
-    startCommand: gunicorn app:app
+    startCommand: python init.py && gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.4
