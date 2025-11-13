@@ -1,14 +1,21 @@
 # init.py — Inicializa DB del catálogo (SQLite)
-# - Crea admins: Adhex y CarlFranxx
-# - Activa FTS5 si está disponible (fallback a LIKE)
+# - Crea admins por defecto
+# - Activa FTS5 si está disponible (y no está desactivado por env)
 # - Usa rutas escribibles (Render: /data o /var/tmp) para DB y uploads
 
 from __future__ import annotations
-import os, uuid, datetime, sys, pathlib
+import os
+import uuid
+import datetime
+import sys
+import pathlib
 import bcrypt
 
-# ----------------- DETECCIÓN ENTORNO / RUTAS ESCRIBIBLES -----------------
+# --------------------------------------------------------------------
+#  DETECCIÓN ENTORNO / RUTAS ESCRIBIBLES
+# --------------------------------------------------------------------
 BASE_DIR = pathlib.Path(__file__).resolve().parent
+
 
 def writable_base() -> pathlib.Path:
     """
@@ -33,22 +40,24 @@ def writable_base() -> pathlib.Path:
     # Render: tmp efímero pero escribible
     vartmp = pathlib.Path("/var/tmp/gamelinkbo")
     try:
-        (vartmp).mkdir(parents=True, exist_ok=True)
+        vartmp.mkdir(parents=True, exist_ok=True)
         return vartmp
     except Exception:
         # Local o fallback: directorio del proyecto
         return BASE_DIR
 
+
 DATA_DIR = writable_base()
 
-# ----------------- CONFIG -----------------
-# Permite cambiar por env en despliegue
+# --------------------------------------------------------------------
+#  CONFIG
+# --------------------------------------------------------------------
 DEFAULT_WHATSAPP = os.getenv("WHATSAPP_NUMBER", "59177676446")
 
-# DB en un path escribible
+# DB en un path escribible (Render: /data/market.db)
 DB_PATH = pathlib.Path(os.getenv("MARKET_DB_PATH", str(DATA_DIR / "market.db")))
 
-# Uploads ESCRIBIBLES (no dentro del repo si estamos en Render)
+# Uploads ESCRIBIBLES (Render: /data/uploads)
 UPLOAD_BASE = pathlib.Path(os.getenv("UPLOAD_DIR", str(DATA_DIR / "uploads")))
 UPLOAD_ORIG = UPLOAD_BASE / "originals"
 UPLOAD_THUM = UPLOAD_BASE / "thumbs"
@@ -58,38 +67,55 @@ ADMINS = [
     ("CarlFranxx", os.getenv("ADMIN2_PASS", "C@rlXx2025_#Admin")),
 ]
 
-# ----------------- SQLITE (con fallback pysqlite3) -----------------
-# Si tienes pysqlite3-binary, úsalo (trae SQLite moderno con FTS5)
+DISABLE_FTS = os.getenv("DISABLE_FTS", "0") == "1"
+
+# --------------------------------------------------------------------
+#  SQLITE (con fallback pysqlite3 moderno si existe)
+# --------------------------------------------------------------------
 try:
-    __import__("pysqlite3")  # pip install pysqlite3-binary
+    __import__("pysqlite3")  # pip install pysqlite3-binary (opcional)
     _sys = sys
     _sys.modules["sqlite3"] = _sys.modules.pop("pysqlite3")
 except Exception:
     pass
 
-import sqlite3  # ahora es pysqlite3 si existe; si no, el estándar
+import sqlite3  # noqa: E402  (ya es pysqlite3 si estaba disponible)
 
-# ----------------- HELPERS -----------------
+
+# --------------------------------------------------------------------
+#  HELPERS
+# --------------------------------------------------------------------
 def now_iso() -> str:
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat()
+
 
 def gen_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
 
-def ensure_dirs():
+
+def ensure_dirs() -> None:
+    """
+    Crea carpetas necesarias (DB, uploads originales y thumbs).
+    """
     for p in (UPLOAD_ORIG, UPLOAD_THUM, DB_PATH.parent):
         p.mkdir(parents=True, exist_ok=True)
 
+
 def connect_db() -> sqlite3.Connection:
+    """
+    Usa SIEMPRE DB_PATH, con foreign_keys y WAL activado.
+    """
     con = sqlite3.connect(str(DB_PATH))
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON;")
-    # En FS compartido suele ayudar
     con.execute("PRAGMA journal_mode=WAL;")
-    con.execute("PRAGMA synchronous=NORMAL;")
+    con.execute("PRAGMA synchronous = NORMAL;")
     return con
 
-# ----------------- SCHEMA BASE (sin FTS) -----------------
+
+# --------------------------------------------------------------------
+#  SCHEMA BASE (sin FTS)
+# --------------------------------------------------------------------
 SCHEMA_BASE = f"""
 PRAGMA foreign_keys = ON;
 
@@ -188,7 +214,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 """
 
-# ----------------- INTENTAR ACTIVAR FTS5 -----------------
+
+# --------------------------------------------------------------------
+#  INTENTAR ACTIVAR FTS5 (si no está deshabilitado)
+# --------------------------------------------------------------------
 SCHEMA_FTS = """
 -- Limpieza por si existiera algo viejo
 DROP TRIGGER IF EXISTS games_ai;
@@ -224,10 +253,21 @@ INSERT INTO games_fts(rowid, title, description)
   WHERE rowid NOT IN (SELECT rowid FROM games_fts);
 """
 
-# ----------------- UTILS -----------------
-def exec_schema(con: sqlite3.Connection):
+
+# --------------------------------------------------------------------
+#  UTILS DE SCHEMA
+# --------------------------------------------------------------------
+def exec_schema(con: sqlite3.Connection) -> None:
+    """
+    Crea/actualiza el esquema base y, si es posible, FTS5.
+    Respeta DISABLE_FTS=1 para no intentar FTS.
+    """
     con.executescript(SCHEMA_BASE)
-    # Intento de FTS5
+
+    if DISABLE_FTS:
+        print("[i] FTS5 deshabilitado por DISABLE_FTS=1. Usando búsqueda LIKE.")
+        return
+
     try:
         con.executescript(SCHEMA_FTS)
         con.execute("UPDATE settings SET value='fts' WHERE key='search_engine'")
@@ -235,17 +275,20 @@ def exec_schema(con: sqlite3.Connection):
     except sqlite3.Error as e:
         print("[!] FTS5 no disponible, usando búsqueda simple (LIKE). Detalle:", e)
 
-def upsert_setting(con: sqlite3.Connection, key: str, value: str):
+
+def upsert_setting(con: sqlite3.Connection, key: str, value: str) -> None:
     con.execute(
         "INSERT INTO settings(key,value) VALUES(?,?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (key, value),
     )
 
-def ensure_admin(con: sqlite3.Connection, username: str, password: str):
+
+def ensure_admin(con: sqlite3.Connection, username: str, password: str) -> str:
     row = con.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
     if row:
         return row["id"]
+
     uid = gen_id("usr")
     pw_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     con.execute(
@@ -255,30 +298,38 @@ def ensure_admin(con: sqlite3.Connection, username: str, password: str):
     )
     return uid
 
-# ----------------- MAIN -----------------
-def main():
+
+# --------------------------------------------------------------------
+#  MAIN (CLI)
+# --------------------------------------------------------------------
+def main() -> None:
     print(f"[+] DATA_DIR: {DATA_DIR}")
     print(f"[+] Inicializando DB en: {DB_PATH}")
     ensure_dirs()
+
     con = connect_db()
     try:
         exec_schema(con)
         upsert_setting(con, "whatsapp_number", DEFAULT_WHATSAPP)
+
+        print("[+] Creando/asegurando admins por defecto...")
         for u, p in ADMINS:
             ensure_admin(con, u, p)
+
         con.commit()
         print("[✓] Esquema creado/actualizado.")
-        print("[✓] Admins creados/asegurados:")
+        print("[✓] Admins asegurados:")
         for u, p in ADMINS:
             print(f"   - {u} / {p}")
         print(f"[✓] WhatsApp por defecto: {DEFAULT_WHATSAPP}")
-        print("[!] Cambia las contraseñas en producción.")
+        print("[!] Recuerda cambiar las contraseñas en producción.")
     except Exception as e:
         con.rollback()
-        print("[X] Error:", e)
+        print("[X] Error durante inicialización:", e)
         sys.exit(1)
     finally:
         con.close()
+
 
 if __name__ == "__main__":
     main()

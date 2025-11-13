@@ -10,6 +10,7 @@ from slugify import slugify
 from flask import send_from_directory
 from pathlib import Path
 import os
+from init import connect_db  
 # =============================
 # CONFIG
 # =============================
@@ -29,6 +30,10 @@ app = Flask(__name__)
 app.secret_key = "cambia-esto-en-produccion"
 
 
+def get_db():
+    if "db" not in g:
+        g.db = connect_db()
+    return g.db
 
 # --- Bootstrap mínimo para producción ---
 import os, sqlite3, pathlib
@@ -86,14 +91,7 @@ bootstrap()
 # =============================
 # DB
 # =============================
-def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-        # IMPORTANTE: desactivamos foreign_keys para evitar errores raros en Render
-        # y manejamos las relaciones a mano.
-        g.db.execute("PRAGMA foreign_keys = OFF;")
-    return g.db
+
 
 @app.teardown_appcontext
 def close_db(exception=None):
