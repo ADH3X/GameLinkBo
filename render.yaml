@@ -7,3 +7,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.4
+    plan: free
+    disk:
+      name: gamelinkbo-data
+      mountPath: /data
+      sizeGB: 1
