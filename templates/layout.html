@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GameLinkBo</title>
 
-  <!-- Tailwind (para todo lo demás que uses) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
@@ -16,17 +15,17 @@
       margin:0;
     }
 
-    /* NAV con efecto glass */
-    .glass-nav{
-      background: rgba(20,20,22,0.85);
+    /* HEADER GLASS */
+    .glass-nav {
+      background: rgba(20,20,22,0.9);
       backdrop-filter: blur(12px);
     }
 
-    /* GRID DE JUEGOS (úsalo en home/catalog) */
+    /* GRID DE JUEGOS (para templates hijos) */
     .games-grid{
       display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
-      gap:1.25rem;
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:1rem;
     }
 
     .game-card{
@@ -45,7 +44,7 @@
     }
 
     .game-body{
-      padding:.8rem .95rem 1rem;
+      padding:.75rem .9rem 1rem;
     }
 
     .game-title{
@@ -60,13 +59,10 @@
       margin-top:.5rem;
     }
 
-    /* ------------- MOBILE ------------- */
+    /* BREAKPOINTS MÓVIL */
     @media (max-width:640px){
-
-      /* el contenedor del header ya lleva flex-wrap en HTML,
-         aquí sólo afinamos tamaños */
-      .brand-text{
-        font-size:1rem;
+      .games-grid{
+        grid-template-columns:1fr;
       }
 
       .game-card{
@@ -80,85 +76,121 @@
   </style>
 </head>
 
-<body>
+<body class="min-h-screen flex flex-col">
 
   <!-- HEADER -->
   <header class="glass-nav shadow-lg sticky top-0 z-50 border-b border-[#1e1e22]">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 py-3 px-4 sm:py-4 sm:px-6">
+    <div class="max-w-7xl mx-auto flex items-center justify-between py-3 px-4 sm:px-6">
 
-      <!-- LEFT: LOGO + NAV -->
-      <div class="flex items-center gap-4 min-w-0">
+      <!-- LEFT SECTION -->
+      <div class="flex items-center gap-4 sm:gap-6">
         <!-- LOGO -->
-        <a href="{{ url_for('home') }}" class="flex items-center gap-3 group min-w-0">
-          <img src="{{ url_for('static', filename='uploads/logo/gamelinkbo.png') }}"
-               class="w-10 h-10 sm:w-11 sm:h-11 object-contain flex-shrink-0"
-               alt="GameLinkBo">
-          <span class="brand-text text-white font-extrabold tracking-tight group-hover:text-yellow-400 transition truncate">
+        <a href="/" class="flex items-center gap-3 group min-w-0">
+          <img src="/static/uploads/logo/gamelinkbo.png" class="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-lg">
+          <span class="text-white text-lg sm:text-2xl font-extrabold tracking-tight truncate group-hover:text-yellow-400 transition">
             GameLinkBo
           </span>
         </a>
 
         <!-- NAV DESKTOP -->
-        <nav class="hidden md:flex items-center gap-6 text-gray-300 text-[15px] ml-4">
-          <a href="{{ url_for('catalog') }}" class="hover:text-yellow-400 transition font-semibold">
-            Catálogo
-          </a>
+        <nav class="hidden md:flex items-center gap-6 text-gray-300 text-[15px]">
+          <a href="/games" class="hover:text-yellow-400 transition font-semibold">Catálogo</a>
 
           {% if session.user_id %}
-            <a href="{{ url_for('admin_dashboard') }}" class="hover:text-yellow-400 transition">
-              Panel
-            </a>
-            <a href="{{ url_for('admin_games') }}" class="hover:text-yellow-400 transition">
-              Juegos
-            </a>
+            <a href="/admin/dashboard" class="hover:text-yellow-400 transition">Panel</a>
+            <a href="/admin/games" class="hover:text-yellow-400 transition">Juegos</a>
           {% endif %}
         </nav>
       </div>
 
-      <!-- SEARCH (oculto en móvil para no saturar la barra) -->
-      <form action="{{ url_for('catalog') }}" method="get"
-            class="hidden md:block w-full md:w-1/3 order-3 md:order-none">
-        <input
-          type="text"
-          name="q"
-          placeholder="Buscar juegos..."
-          class="w-full px-4 py-2.5 rounded-lg bg-[#1b1b20] text-gray-200
-                 border border-gray-700 focus:ring-2 focus:ring-yellow-500 outline-none text-sm"
-        >
-      </form>
+      <!-- RIGHT SECTION / DESKTOP -->
+      <div class="hidden md:flex items-center gap-4">
+        <!-- SEARCH DESKTOP -->
+        <form action="/games" method="get" class="w-72">
+          <input
+            type="text"
+            name="q"
+            placeholder="Buscar juegos..."
+            class="w-full px-4 py-2.5 rounded-lg bg-[#1b1b20] text-gray-200 
+                   border border-gray-700 focus:ring-2 focus:ring-yellow-500 outline-none text-sm"
+          >
+        </form>
 
-      <!-- RIGHT: BOTÓN ADMIN / SALIR -->
-      <div class="flex items-center gap-3 ml-auto order-2 md:order-none">
         {% if session.user_id %}
-          <a href="{{ url_for('admin_logout') }}"
-             class="bg-red-600 px-4 py-1.5 rounded font-semibold text-white text-sm hover:bg-red-700 transition whitespace-nowrap">
+          <a href="/admin/logout" class="bg-red-600 px-4 py-1.5 rounded font-semibold text-white hover:bg-red-700 transition text-sm">
             Salir
           </a>
         {% else %}
-          <a href="{{ url_for('admin_login') }}"
-             class="text-gray-300 hover:text-yellow-400 transition font-semibold text-sm whitespace-nowrap">
+          <a href="/admin/login" class="text-gray-300 hover:text-yellow-400 transition font-semibold text-sm">
             Admin
           </a>
         {% endif %}
       </div>
 
+      <!-- BOTÓN MENÚ MÓVIL -->
+      <button
+        id="mobile-menu-toggle"
+        class="md:hidden inline-flex items-center justify-center p-2 rounded-lg border border-gray-700 text-gray-200 hover:bg-gray-800"
+        aria-label="Abrir menú"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+
+    </div>
+
+    <!-- MENÚ MÓVIL -->
+    <div id="mobile-menu" class="md:hidden hidden border-t border-[#1e1e22]">
+      <div class="px-4 py-3 space-y-3">
+
+        <!-- BUSCADOR MÓVIL -->
+        <form action="/games" method="get">
+          <input
+            type="text"
+            name="q"
+            placeholder="Buscar juegos..."
+            class="w-full px-3 py-2 rounded-lg bg-[#1b1b20] text-gray-200 
+                   border border-gray-700 focus:ring-2 focus:ring-yellow-500 outline-none text-sm"
+          >
+        </form>
+
+        <!-- LINKS MÓVIL -->
+        <nav class="flex flex-col gap-2 text-sm text-gray-200">
+          <a href="/games" class="py-1 hover:text-yellow-400 font-semibold">Catálogo</a>
+
+          {% if session.user_id %}
+            <a href="/admin/dashboard" class="py-1 hover:text-yellow-400">Panel</a>
+            <a href="/admin/games" class="py-1 hover:text-yellow-400">Juegos</a>
+            <a href="/admin/logout" class="mt-2 inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700">
+              Salir
+            </a>
+          {% else %}
+            <a href="/admin/login" class="mt-1 inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-gray-600 text-xs font-semibold hover:border-yellow-400 hover:text-yellow-400">
+              Admin
+            </a>
+          {% endif %}
+        </nav>
+      </div>
     </div>
   </header>
 
   <!-- MAIN CONTENT -->
-  <main class="max-w-7xl mx-auto py-8 sm:py-10 px-4 sm:px-6">
+  <main class="flex-1 max-w-7xl mx-auto w-full py-6 sm:py-10 px-4 sm:px-6">
 
     <!-- FLASH MESSAGES -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, msg in messages %}
-          <div class="mb-4 p-3 rounded text-sm
-            {% if category == 'error' %}bg-red-700
-            {% elif category == 'success' %}bg-green-700
-            {% else %}bg-gray-700{% endif %}">
-            {{ msg }}
-          </div>
-        {% endfor %}
+        <div class="space-y-2 mb-4 sm:mb-6">
+          {% for category, msg in messages %}
+            <div class="p-3 rounded text-sm
+              {% if category == 'error' %}bg-red-700
+              {% elif category == 'success' %}bg-green-700
+              {% else %}bg-gray-700{% endif %}">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
 
@@ -166,9 +198,20 @@
   </main>
 
   <!-- FOOTER -->
-  <footer class="glass-nav py-6 text-center text-sm text-gray-500 border-t border-[#1e1e22]">
+  <footer class="glass-nav py-5 text-center text-xs sm:text-sm text-gray-500 border-t border-[#1e1e22] mt-6">
     © 2025 GameLinkBo — Todos los derechos reservados
   </footer>
+
+  <script>
+    const toggle = document.getElementById('mobile-menu-toggle');
+    const menu   = document.getElementById('mobile-menu');
+
+    if (toggle && menu) {
+      toggle.addEventListener('click', () => {
+        menu.classList.toggle('hidden');
+      });
+    }
+  </script>
 
 </body>
 </html>

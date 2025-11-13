@@ -50,22 +50,3 @@
 </div>
 
 {% endblock %}
-{% extends "layout.html" %}
-{% block content %}
-  <section class="space-y-4">
-    <h1 class="text-xl sm:text-2xl font-semibold mb-4">Últimos juegos</h1>
-
-    <div class="games-grid">
-      {% for game in games %}
-        <article class="game-card">
-          <img src="{{ game.cover or url_for('static', filename='uploads/logo/gamelinkbo.png') }}"
-               alt="{{ game.title }}">
-          <div class="game-body">
-            <h2 class="game-title">{{ game.title }}</h2>
-            <p class="game-price">Bs {{ "%.2f"|format(game.base_price) }}</p>
-          </div>
-        </article>
-      {% endfor %}
-    </div>
-  </section>
-{% endblock %}
