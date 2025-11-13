@@ -1,5 +1,5 @@
 # app.py — Catálogo + Panel Admin con subida de imágenes (Flask + SQLite + Pillow)
-import os, sqlite3, uuid, bcrypt, datetime
+import os, uuid, bcrypt, datetime
 from io import BytesIO
 from PIL import Image
 from flask import (
@@ -7,15 +7,14 @@ from flask import (
     session, flash, abort, send_from_directory
 )
 from slugify import slugify
-from flask import send_from_directory
 from pathlib import Path
-import os
-from init import connect_db  
+import pathlib
+from init import connect_db  # ← usa SIEMPRE esta conexión (apunta a /data/market.db)
+
 # =============================
 # CONFIG
 # =============================
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
-DB_PATH      = os.path.join(BASE_DIR, "market.db")
 STATIC_DIR   = os.path.join(BASE_DIR, "static")
 UPLOADS_DIR  = os.path.join(STATIC_DIR, "uploads")
 ORIG_DIR     = os.path.join(UPLOADS_DIR, "originals")
@@ -28,70 +27,13 @@ os.makedirs(THUM_DIR, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = "cambia-esto-en-produccion"
-
-
-def get_db():
-    if "db" not in g:
-        g.db = connect_db()
-    return g.db
-
-# --- Bootstrap mínimo para producción ---
-import os, sqlite3, pathlib
-
-BASE_DIR = pathlib.Path(__file__).resolve().parent
-DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "market.db"))
-
-def open_db():
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA foreign_keys = ON;")
-    return con
-
-def bootstrap():
-    con = open_db()
-    cur = con.cursor()
-
-    # tablas base (solo las necesarias para el FK)
-    cur.executescript("""
-    CREATE TABLE IF NOT EXISTS platforms (
-      id   TEXT PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS genres (
-      id   TEXT PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL
-    );
-    """)
-
-    # seeds idempotentes
-    cur.executemany("INSERT OR IGNORE INTO platforms(id,name) VALUES(?,?)", [
-        ("plat_steam","Steam"),
-        ("plat_ps","PlayStation"),
-        ("plat_xbox","Xbox"),
-        ("plat_switch","Switch"),
-        ("plat_pc","PC"),
-    ])
-    cur.executemany("INSERT OR IGNORE INTO genres(id,name) VALUES(?,?)", [
-        ("gen_acc","Acción"),
-        ("gen_adv","Aventura"),
-        ("gen_rpg","RPG"),
-        ("gen_sho","Shooter"),
-        ("gen_ind","Indie"),
-        ("gen_spo","Deportes"),
-        ("gen_str","Estrategia"),
-    ])
-
-    con.commit()
-    con.close()
-
-# Lánzalo al inicio del proceso
-bootstrap()
-
-
 # =============================
 # DB
 # =============================
-
+def get_db():
+    if "db" not in g:
+        g.db = connect_db()     # ← ahora siempre /data/market.db
+    return g.db
 
 @app.teardown_appcontext
 def close_db(exception=None):
