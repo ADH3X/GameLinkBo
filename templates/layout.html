@@ -109,3 +109,155 @@
 
 </body>
 </html>
+
+<style>
+  body{
+    background:#0c0c0e;
+    color:#f4f4f5;
+    font-family:'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin:0;
+  }
+
+  /* CONTENEDOR GENERAL */
+  .shell{
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  /* HEADER / NAVBAR */
+  .topbar{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(0,0,0,0.9);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid #27272a;
+  }
+
+  .topbar-inner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    padding:.75rem 1rem;
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    min-width:0;
+  }
+
+  .brand-logo{
+    width:32px;
+    height:32px;
+    border-radius:.5rem;
+    flex-shrink:0;
+  }
+
+  .brand-text{
+    font-weight:600;
+    font-size:1rem;
+    white-space:nowrap;
+  }
+
+  .nav-actions{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    flex-wrap:wrap;          /* ← Esto deja que los botones bajen de línea en móvil */
+    justify-content:flex-end;
+  }
+
+  .nav-btn{
+    border-radius:.75rem;
+    padding:.35rem .8rem;
+    font-size:.85rem;
+    border:1px solid #3f3f46;
+    background:#18181b;
+    color:#e4e4e7;
+    text-decoration:none;
+    white-space:nowrap;
+  }
+
+  .nav-btn-primary{
+    border-color:#22c55e;
+    background:#16a34a;
+    color:#020617;
+  }
+
+  /* GRID DE JUEGOS */
+  .games-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    gap:1rem;
+  }
+
+  .game-card{
+    background:#18181b;
+    border-radius:1rem;
+    border:1px solid #27272a;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .game-card img{
+    width:100%;
+    display:block;
+    object-fit:cover;
+  }
+
+  .game-body{
+    padding:.75rem .9rem 1rem;
+  }
+
+  .game-title{
+    font-size:.95rem;
+    font-weight:600;
+    margin-bottom:.25rem;
+  }
+
+  .game-price{
+    font-size:.9rem;
+    color:#a1a1aa;
+    margin-top:.5rem;
+  }
+
+  /* ------------- BREAKPOINTS MÓVIL ------------- */
+  @media (max-width:640px){
+    .topbar-inner{
+      padding:.5rem .75rem;
+    }
+
+    .brand-text{
+      font-size:.9rem;
+    }
+
+    /* botones más chicos y envueltos */
+    .nav-btn{
+      font-size:.78rem;
+      padding:.3rem .6rem;
+    }
+
+    .nav-actions{
+      max-width: 55%;   /* evita que el logo se achique demasiado */
+      justify-content:flex-end;
+    }
+
+    /* tarjetas: una por fila, nada se corta */
+    .games-grid{
+      grid-template-columns:1fr;
+    }
+
+    .game-card{
+      border-radius:.9rem;
+    }
+
+    .game-title{
+      font-size:.9rem;
+    }
+  }
+</style>
