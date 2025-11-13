@@ -192,6 +192,41 @@ def delete_game_files(db, game_id: str):
 # =============================
 # AUTH
 # =============================
+# =============================
+# AUTH ADMIN
+# =============================
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").encode("utf-8")
+
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM users WHERE username=? AND is_active=1",
+            (username,)
+        ).fetchone()
+
+        if user and bcrypt.checkpw(password, user["password_hash"].encode("utf-8")):
+            # guardar sesión
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]
+            return redirect(url_for("admin_dashboard"))
+
+        flash("Usuario o contraseña incorrectos", "error")
+
+    # GET o fallo de login
+    return render_template("admin/login.html")
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.clear()
+    flash("Sesión cerrada", "info")
+    return redirect(url_for("admin_login"))
+
 @app.post("/admin/games/<game_id>/delete")
 def admin_delete_game(game_id):
     # Seguridad básica: requiere login admin
