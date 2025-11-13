@@ -90,7 +90,9 @@ def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON;")
+        # IMPORTANTE: desactivamos foreign_keys para evitar errores raros en Render
+        # y manejamos las relaciones a mano.
+        g.db.execute("PRAGMA foreign_keys = OFF;")
     return g.db
 
 @app.teardown_appcontext
@@ -209,20 +211,28 @@ def admin_delete_game(game_id):
 # =============================
 # AUTH
 # =============================
-@app.route("/admin/login", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "POST":
-        username = request.form["username"].strip()
-        password = request.form["password"].encode("utf-8")
-        db = get_db()
-        user = db.execute("SELECT * FROM users WHERE username=? AND is_active=1", (username,)).fetchone()
-        if user and bcrypt.checkpw(password, user["password_hash"].encode("utf-8")):
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            session["role"] = user["role"]
-            return redirect(url_for("admin_dashboard"))
-        flash("Usuario o contraseña incorrectos", "error")
-    return render_template("admin/login.html")
+@app.post("/admin/games/<game_id>/delete")
+def admin_delete_game(game_id):
+    # Seguridad básica: requiere login admin
+    if not session.get("user_id"):
+        flash("Inicia sesión.", "error")
+        return redirect(url_for("admin_login"))
+
+    db = get_db()
+
+    # 1) borrar archivos físicos
+    delete_game_files(db, game_id)
+
+    # 2) borrar registros relacionados a mano
+    db.execute("DELETE FROM game_images WHERE game_id=?", (game_id,))
+    db.execute("DELETE FROM game_genres WHERE game_id=?", (game_id,))
+
+    # 3) borrar el juego
+    db.execute("DELETE FROM games WHERE id=?", (game_id,))
+    db.commit()
+
+    flash("Juego eliminado correctamente.", "success")
+    return redirect(url_for("admin_games"))
 
 @app.route("/admin/logout")
 def admin_logout():
