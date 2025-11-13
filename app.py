@@ -187,27 +187,8 @@ def delete_game_files(db, game_id: str):
         file_safe_delete(row["file_path"])
         file_safe_delete(row["thumb_path"])
 
-# Ruta: POST /admin/games/<id>/delete
-@app.post("/admin/games/<game_id>/delete")
-def admin_delete_game(game_id):
-    # Seguridad básica: requiere login admin
-    if not session.get("user_id"):
-        flash("Inicia sesión.", "error")
-        return redirect(url_for("admin_login"))
 
-    db = get_db()  # usa tu helper real; si tu helper es distinto, cámbialo
-    # IMPORTANTE: asegurarse foreign_keys ON
-    db.execute("PRAGMA foreign_keys = ON;")
 
-    # 1) borrar archivos de imágenes en disco
-    delete_game_files(db, game_id)
-
-    # 2) borrar el juego (esto dispara ON DELETE CASCADE en tablas hijas)
-    db.execute("DELETE FROM games WHERE id=?", (game_id,))
-    db.commit()
-
-    flash("Juego eliminado correctamente.", "success")
-    return redirect(url_for("admin_games"))
 # =============================
 # AUTH
 # =============================
