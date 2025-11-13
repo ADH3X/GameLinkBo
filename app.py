@@ -250,11 +250,7 @@ def admin_delete_game(game_id):
     flash("Juego eliminado correctamente.", "success")
     return redirect(url_for("admin_games"))
 
-@app.route("/admin/logout")
-def admin_logout():
-    session.clear()
-    flash("Sesión cerrada", "info")
-    return redirect(url_for("admin_login"))
+
 
 # =============================
 # ADMIN — DASH, LISTA, CREAR, EDITAR, IMÁGENES
