@@ -9,30 +9,35 @@ from flask import (
 from slugify import slugify
 from pathlib import Path
 import pathlib
-from init import connect_db  # ← usa SIEMPRE esta conexión (apunta a /data/market.db)
+from init import connect_db  # usa SIEMPRE esta conexión (apunta a /data/market.db)
 
 # =============================
 # CONFIG
 # =============================
-BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR   = os.path.join(BASE_DIR, "static")
-UPLOADS_DIR  = os.path.join(STATIC_DIR, "uploads")
-ORIG_DIR     = os.path.join(UPLOADS_DIR, "originals")
-THUM_DIR     = os.path.join(UPLOADS_DIR, "thumbs")
-ALLOWED_EXT  = {".jpg", ".jpeg", ".png", ".webp"}
-THUMB_SIZE   = (512, 512)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Render monta el disco persistente en /data
+DATA_DIR = Path(os.getenv("DATA_DIR", "/data"))
+
+UPLOADS_DIR = DATA_DIR / "uploads"
+ORIG_DIR    = UPLOADS_DIR / "originals"
+THUM_DIR    = UPLOADS_DIR / "thumbs"
+
+ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+THUMB_SIZE  = (512, 512)
 
 os.makedirs(ORIG_DIR, exist_ok=True)
 os.makedirs(THUM_DIR, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = "cambia-esto-en-produccion"
+
 # =============================
 # DB
 # =============================
 def get_db():
     if "db" not in g:
-        g.db = connect_db()     # ← ahora siempre /data/market.db
+        g.db = connect_db()     # ahora siempre /data/market.db
     return g.db
 
 @app.teardown_appcontext
@@ -57,7 +62,7 @@ def allowed_file(filename: str) -> bool:
 def save_image(file_storage, slug: str):
     """
     Guarda original y genera thumbnail 512x512 recortado al centro.
-    Retorna (file_path_rel, thumb_path_rel).
+    Retorna (file_path_rel, thumb_path_rel) relativos a la carpeta /data/uploads.
     """
     filename = file_storage.filename
     ext = os.path.splitext(filename)[1].lower()
@@ -66,27 +71,29 @@ def save_image(file_storage, slug: str):
 
     uid = uuid.uuid4().hex
     base_name = f"{slug}-{uid}{ext}"
-    orig_rel  = f"static/uploads/originals/{base_name}"
-    thum_rel  = f"static/uploads/thumbs/{base_name}"
-    orig_abs  = os.path.join(BASE_DIR, orig_rel)
-    thum_abs  = os.path.join(BASE_DIR, thum_rel)
+
+    # Rutas físicas en el disco persistente
+    orig_abs = ORIG_DIR / base_name
+    thum_abs = THUM_DIR / base_name
 
     # Guardar original
     file_storage.save(orig_abs)
 
-    # Abrir con Pillow y generar thumb cuadrado centrado
+    # Generar thumbnail
     with Image.open(orig_abs) as im:
         im = im.convert("RGB")
-        # recorte centrado a cuadrado
         w, h = im.size
         side = min(w, h)
         left = (w - side) // 2
-        top  = (h - side) // 2
+        top = (h - side) // 2
         im = im.crop((left, top, left + side, top + side))
         im = im.resize(THUMB_SIZE, Image.Resampling.LANCZOS)
         im.save(thum_abs, format="JPEG", quality=90)
 
-    return orig_rel.replace("\\", "/"), thum_rel.replace("\\", "/")
+    # Lo que guardamos en BD: rutas RELATIVAS dentro de uploads
+    orig_rel = f"originals/{base_name}"
+    thum_rel = f"thumbs/{base_name}"
+    return orig_rel, thum_rel
 
 def login_required(fn):
     from functools import wraps
@@ -97,17 +104,15 @@ def login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-
 def file_safe_delete(path_str: str):
     """
-    Borra un archivo si existe (ignora errores).
-    path_str puede venir como 'static/uploads/originals/xxx.jpg'
-    o 'static\\uploads\\originals\\xxx.jpg' — normalizamos.
+    Borra un archivo dentro de /data/uploads si existe (ignora errores).
+    path_str: 'originals/xxx.jpg', 'thumbs/xxx.jpg', etc.
     """
     try:
         if not path_str:
             return
-        p = BASE_DIR / pathlib.Path(path_str)
+        p = UPLOADS_DIR / pathlib.Path(path_str)
         if p.exists() and p.is_file():
             p.unlink(missing_ok=True)
     except Exception:
@@ -127,15 +132,17 @@ def delete_game_files(db, game_id: str):
         file_safe_delete(row["file_path"])
         file_safe_delete(row["thumb_path"])
 
-
-
 # =============================
-# AUTH
+# RUTA PARA SERVIR IMÁGENES
 # =============================
+@app.route("/media/<path:filename>")
+def media(filename):
+    # Sirve archivos desde el disco persistente /data/uploads
+    return send_from_directory(UPLOADS_DIR, filename)
+
 # =============================
 # AUTH ADMIN
 # =============================
-
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
@@ -149,7 +156,6 @@ def admin_login():
         ).fetchone()
 
         if user and bcrypt.checkpw(password, user["password_hash"].encode("utf-8")):
-            # guardar sesión
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
@@ -157,9 +163,7 @@ def admin_login():
 
         flash("Usuario o contraseña incorrectos", "error")
 
-    # GET o fallo de login
     return render_template("admin/login.html")
-
 
 @app.route("/admin/logout")
 def admin_logout():
@@ -169,7 +173,6 @@ def admin_logout():
 
 @app.post("/admin/games/<game_id>/delete")
 def admin_delete_game(game_id):
-    # Seguridad básica: requiere login admin
     if not session.get("user_id"):
         flash("Inicia sesión.", "error")
         return redirect(url_for("admin_login"))
@@ -190,16 +193,9 @@ def admin_delete_game(game_id):
     flash("Juego eliminado correctamente.", "success")
     return redirect(url_for("admin_games"))
 
-
-
 # =============================
 # ADMIN — DASH, LISTA, CREAR, EDITAR, IMÁGENES
 # =============================
-DATA_DIR = Path(os.getenv("DATA_DIR", "/var/tmp"))
-
-@app.route("/media/<path:filename>")
-def media(filename):
-    return send_from_directory(DATA_DIR / "uploads", filename)
 @app.route("/admin/dashboard")
 @login_required
 def admin_dashboard():
@@ -207,18 +203,30 @@ def admin_dashboard():
     total_games = db.execute("SELECT COUNT(*) FROM games").fetchone()[0]
     published   = db.execute("SELECT COUNT(*) FROM games WHERE is_published=1").fetchone()[0]
     unpublished = total_games - published
-    return render_template("admin/dashboard.html",
-                           total_games=total_games, published=published, unpublished=unpublished)
+    return render_template(
+        "admin/dashboard.html",
+        total_games=total_games,
+        published=published,
+        unpublished=unpublished
+    )
 
 @app.route("/admin/games")
 @login_required
 def admin_games():
     db = get_db()
     rows = db.execute("""
-        SELECT g.id, g.slug, g.title, g.base_price, g.is_published,
-               (SELECT thumb_path FROM game_images WHERE game_id=g.id AND is_cover=1 LIMIT 1) AS cover,
+        SELECT g.id,
+               g.slug,
+               g.title,
+               g.base_price,
+               g.is_published,
+               (SELECT '/media/' || thumb_path
+                  FROM game_images
+                 WHERE game_id = g.id AND is_cover = 1
+                 LIMIT 1) AS cover,
                p.name AS platform_name
-        FROM games g JOIN platforms p ON p.id=g.platform_id
+        FROM games g
+        JOIN platforms p ON p.id = g.platform_id
         ORDER BY g.created_at DESC
     """).fetchall()
     return render_template("admin/game_list.html", games=rows)
@@ -254,9 +262,11 @@ def admin_games_new():
               session["user_id"], now, now))
 
         for gid in genre_ids:
-            db.execute("INSERT OR IGNORE INTO game_genres (game_id, genre_id) VALUES (?,?)", (game_id, gid))
+            db.execute(
+                "INSERT OR IGNORE INTO game_genres (game_id, genre_id) VALUES (?,?)",
+                (game_id, gid)
+            )
 
-        # Imágenes (múltiples)
         files = request.files.getlist("images")
         order_idx = 0
         cover_set = False
@@ -267,9 +277,18 @@ def admin_games_new():
                     img_id = gen_id("img")
                     is_cover = 1 if not cover_set else 0
                     db.execute("""
-                        INSERT INTO game_images (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
+                        INSERT INTO game_images
+                            (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
                         VALUES (?,?,?,?,?,?,?)
-                    """, (img_id, game_id, os.path.basename(file_path), file_path, thumb_path, is_cover, order_idx))
+                    """, (
+                        img_id,
+                        game_id,
+                        os.path.basename(file_path),
+                        file_path,
+                        thumb_path,
+                        is_cover,
+                        order_idx,
+                    ))
                     cover_set = True if is_cover == 1 else cover_set
                     order_idx += 1
                 except Exception as e:
@@ -279,7 +298,13 @@ def admin_games_new():
         flash("Juego creado", "success")
         return redirect(url_for("admin_games"))
 
-    return render_template("admin/game_form.html", platforms=platforms, genres=genres, form_action=url_for("admin_games_new"), game=None)
+    return render_template(
+        "admin/game_form.html",
+        platforms=platforms,
+        genres=genres,
+        form_action=url_for("admin_games_new"),
+        game=None
+    )
 
 @app.route("/admin/games/<game_id>/edit", methods=["GET", "POST"])
 @login_required
@@ -290,8 +315,21 @@ def admin_games_edit(game_id):
         abort(404)
     platforms = db.execute("SELECT id, name FROM platforms ORDER BY name").fetchall()
     genres    = db.execute("SELECT id, name FROM genres ORDER BY name").fetchall()
-    current_genres = {r["genre_id"] for r in db.execute("SELECT genre_id FROM game_genres WHERE game_id=?", (game_id,)).fetchall()}
-    images    = db.execute("SELECT * FROM game_images WHERE game_id=? ORDER BY is_cover DESC, order_idx ASC", (game_id,)).fetchall()
+    current_genres = {
+        r["genre_id"]
+        for r in db.execute(
+            "SELECT genre_id FROM game_genres WHERE game_id=?",
+            (game_id,)
+        ).fetchall()
+    }
+    images = db.execute("""
+        SELECT *,
+               '/media/' || thumb_path AS thumb_url,
+               '/media/' || file_path  AS file_url
+        FROM game_images
+        WHERE game_id=?
+        ORDER BY is_cover DESC, order_idx ASC
+    """, (game_id,)).fetchall()
 
     if request.method == "POST":
         title       = request.form["title"].strip()
@@ -309,29 +347,62 @@ def admin_games_edit(game_id):
         slug = slugify(title)
         db.execute("""
             UPDATE games
-               SET slug=?, title=?, description=?, platform_id=?, base_price=?, discount_pct=?,
-                   is_published=?, updated_at=?
+               SET slug=?,
+                   title=?,
+                   description=?,
+                   platform_id=?,
+                   base_price=?,
+                   discount_pct=?,
+                   is_published=?,
+                   updated_at=?
              WHERE id=?
-        """, (slug, title, description, platform_id, price, discount, publish, now_iso(), game_id))
+        """, (
+            slug,
+            title,
+            description,
+            platform_id,
+            price,
+            discount,
+            publish,
+            now_iso(),
+            game_id,
+        ))
 
         # sync géneros
         for gid in (genre_ids - current_genres):
-            db.execute("INSERT OR IGNORE INTO game_genres (game_id, genre_id) VALUES (?,?)", (game_id, gid))
+            db.execute(
+                "INSERT OR IGNORE INTO game_genres (game_id, genre_id) VALUES (?,?)",
+                (game_id, gid)
+            )
         for gid in (current_genres - genre_ids):
-            db.execute("DELETE FROM game_genres WHERE game_id=? AND genre_id=?", (game_id, gid))
+            db.execute(
+                "DELETE FROM game_genres WHERE game_id=? AND genre_id=?",
+                (game_id, gid)
+            )
 
-        # nuevas imágenes opcionales
         files = request.files.getlist("images")
-        order_idx = db.execute("SELECT IFNULL(MAX(order_idx),-1) FROM game_images WHERE game_id=?", (game_id,)).fetchone()[0] + 1
+        order_idx = db.execute(
+            "SELECT IFNULL(MAX(order_idx),-1) FROM game_images WHERE game_id=?",
+            (game_id,)
+        ).fetchone()[0] + 1
         for f in files:
             if f and allowed_file(f.filename):
                 try:
                     file_path, thumb_path = save_image(f, slug)
                     img_id = gen_id("img")
                     db.execute("""
-                        INSERT INTO game_images (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
+                        INSERT INTO game_images
+                            (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
                         VALUES (?,?,?,?,?,?,?)
-                    """, (img_id, game_id, os.path.basename(file_path), file_path, thumb_path, 0, order_idx))
+                    """, (
+                        img_id,
+                        game_id,
+                        os.path.basename(file_path),
+                        file_path,
+                        thumb_path,
+                        0,
+                        order_idx,
+                    ))
                     order_idx += 1
                 except Exception as e:
                     flash(f"Error subiendo imagen: {e}", "error")
@@ -340,10 +411,15 @@ def admin_games_edit(game_id):
         flash("Juego actualizado", "success")
         return redirect(url_for("admin_games_edit", game_id=game_id))
 
-    return render_template("admin/game_form.html",
-                           platforms=platforms, genres=genres, game=game,
-                           current_genres=current_genres, images=images,
-                           form_action=url_for("admin_games_edit", game_id=game_id))
+    return render_template(
+        "admin/game_form.html",
+        platforms=platforms,
+        genres=genres,
+        game=game,
+        current_genres=current_genres,
+        images=images,
+        form_action=url_for("admin_games_edit", game_id=game_id)
+    )
 
 @app.post("/admin/games/<game_id>/publish")
 @login_required
@@ -353,7 +429,10 @@ def admin_games_publish(game_id):
     if not game:
         abort(404)
     new_state = 0 if game["is_published"] == 1 else 1
-    db.execute("UPDATE games SET is_published=?, updated_at=? WHERE id=?", (new_state, now_iso(), game_id))
+    db.execute(
+        "UPDATE games SET is_published=?, updated_at=? WHERE id=?",
+        (new_state, now_iso(), game_id)
+    )
     db.commit()
     flash("Estado actualizado", "success")
     return redirect(url_for("admin_games"))
@@ -362,7 +441,10 @@ def admin_games_publish(game_id):
 @login_required
 def admin_image_set_cover(img_id):
     db = get_db()
-    row = db.execute("SELECT game_id FROM game_images WHERE id=?", (img_id,)).fetchone()
+    row = db.execute(
+        "SELECT game_id FROM game_images WHERE id=?",
+        (img_id,)
+    ).fetchone()
     if not row:
         abort(404)
     game_id = row["game_id"]
@@ -376,19 +458,21 @@ def admin_image_set_cover(img_id):
 @login_required
 def admin_image_delete(img_id):
     db = get_db()
-    row = db.execute("SELECT game_id, file_path, thumb_path FROM game_images WHERE id=?", (img_id,)).fetchone()
+    row = db.execute(
+        "SELECT game_id, file_path, thumb_path FROM game_images WHERE id=?",
+        (img_id,)
+    ).fetchone()
     if not row:
         abort(404)
+
+    # borrar registro
     db.execute("DELETE FROM game_images WHERE id=?", (img_id,))
     db.commit()
-    # borrar archivos físicos (si existen)
-    for p in (row["file_path"], row["thumb_path"]):
-        abs_p = os.path.join(BASE_DIR, p)
-        try:
-            if os.path.exists(abs_p):
-                os.remove(abs_p)
-        except Exception:
-            pass
+
+    # borrar archivos físicos
+    file_safe_delete(row["file_path"])
+    file_safe_delete(row["thumb_path"])
+
     flash("Imagen eliminada", "success")
     return redirect(url_for("admin_games_edit", game_id=row["game_id"]))
 
@@ -399,10 +483,17 @@ def admin_image_delete(img_id):
 def home():
     db = get_db()
     games = db.execute("""
-        SELECT g.id, g.slug, g.title, g.base_price, g.discount_pct,
-               (SELECT thumb_path FROM game_images WHERE game_id=g.id AND is_cover=1 LIMIT 1) AS cover
+        SELECT g.id,
+               g.slug,
+               g.title,
+               g.base_price,
+               g.discount_pct,
+               (SELECT '/media/' || thumb_path
+                  FROM game_images
+                 WHERE game_id = g.id AND is_cover = 1
+                 LIMIT 1) AS cover
         FROM games g
-        WHERE g.is_published=1
+        WHERE g.is_published = 1
         ORDER BY g.created_at DESC
         LIMIT 8;
     """).fetchall()
@@ -411,24 +502,30 @@ def home():
 @app.route("/games")
 def catalog():
     db = get_db()
-    q = request.args.get("q", "").strip()
+    q        = request.args.get("q", "").strip()
     platform = request.args.get("platform")
 
-    # ¿Hay FTS?
     search_engine = db.execute(
         "SELECT value FROM settings WHERE key='search_engine'"
     ).fetchone()["value"]
 
     base_sql = """
-        SELECT g.id, g.slug, g.title, g.base_price, g.discount_pct,
-               (SELECT thumb_path FROM game_images WHERE game_id=g.id AND is_cover=1 LIMIT 1) AS cover
+        SELECT g.id,
+               g.slug,
+               g.title,
+               g.base_price,
+               g.discount_pct,
+               (SELECT '/media/' || thumb_path
+                  FROM game_images
+                 WHERE game_id = g.id AND is_cover = 1
+                 LIMIT 1) AS cover
         FROM games g
-        WHERE g.is_published=1
+        WHERE g.is_published = 1
     """
     params = []
 
     if platform:
-        base_sql += " AND g.platform_id=?"
+        base_sql += " AND g.platform_id = ?"
         params.append(platform)
 
     if q:
@@ -444,27 +541,42 @@ def catalog():
     games = db.execute(base_sql, params).fetchall()
     return render_template("store/catalog.html", games=games, q=q, platform=platform)
 
-
 @app.route("/game/<slug>")
 def game_detail(slug):
     db = get_db()
     game = db.execute("""
         SELECT g.*, p.name AS platform_name
-        FROM games g JOIN platforms p ON g.platform_id=p.id
-        WHERE g.slug=? AND g.is_published=1
+        FROM games g
+        JOIN platforms p ON g.platform_id = p.id
+        WHERE g.slug = ? AND g.is_published = 1
     """, (slug,)).fetchone()
     if not game:
         abort(404)
+
     images = db.execute("""
-        SELECT id, file_path, thumb_path, is_cover
-        FROM game_images WHERE game_id=? ORDER BY is_cover DESC, order_idx ASC
+        SELECT id,
+               file_path,
+               thumb_path,
+               is_cover,
+               '/media/' || thumb_path AS thumb_url,
+               '/media/' || file_path  AS file_url
+        FROM game_images
+        WHERE game_id = ?
+        ORDER BY is_cover DESC, order_idx ASC
     """, (game["id"],)).fetchall()
+
     wa = game["whatsapp_override"] or db.execute(
         "SELECT value FROM settings WHERE key='whatsapp_number'"
     ).fetchone()["value"]
     msg = f"Hola, quiero comprar {game['title']} ({game['platform_name']})"
     wa_link = f"https://wa.me/{wa}?text={msg.replace(' ', '%20')}"
-    return render_template("store/game_detail.html", game=game, images=images, wa_link=wa_link)
+
+    return render_template(
+        "store/game_detail.html",
+        game=game,
+        images=images,
+        wa_link=wa_link
+    )
 
 # =============================
 # RUN
