@@ -17,9 +17,9 @@
     {% if g.cover %}
       <div class="rounded-xl overflow-hidden mb-4">
         <img 
-          src="{{ g.cover }}" 
-          alt="{{ g.title }}"
+          src="/media/{{ g.cover }}" 
           class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+          alt="{{ g.title }}"
         >
       </div>
     {% else %}
@@ -34,7 +34,7 @@
     </h3>
 
     <!-- DISCOUNT -->
-    {% if g.discount_pct and g.discount_pct > 0 %}
+    {% if g.discount_pct > 0 %}
       <p class="text-yellow-400 text-sm font-bold mb-1">
         -{{ g.discount_pct|int }}% OFF
       </p>

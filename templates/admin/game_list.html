@@ -1,25 +1,18 @@
 {% extends "layout.html" %}
 {% block content %}
-
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-3xl font-bold text-yellow-400">Juegos</h1>
-  <a href="/admin/games/new" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded">
-    Agregar juego
-  </a>
+  <a href="/admin/games/new" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded">Agregar juego</a>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
   {% for g in games %}
   <div class="bg-[#1a1a1d] p-4 rounded-lg shadow">
-
+    
     {% if g.cover %}
-      <!-- MUY IMPORTANTE: SIN "/" AL INICIO -->
-      <img src="{{ g.cover }}" class="rounded mb-3 w-full h-48 object-cover">
+      <img src="/media/{{ g.cover }}" class="rounded mb-3 w-full h-48 object-cover" alt="{{ g.title }}">
     {% else %}
-      <div class="bg-gray-800 h-48 flex items-center justify-center text-gray-500 rounded">
-        Sin imagen
-      </div>
+      <div class="bg-gray-800 h-48 flex items-center justify-center text-gray-500 rounded">Sin imagen</div>
     {% endif %}
 
     <h3 class="text-lg font-semibold">{{ g.title }}</h3>
@@ -42,7 +35,7 @@
         Editar
       </a>
 
-      <!-- Eliminar -->
+      <!-- ELIMINAR -->
       <form method="post"
             action="/admin/games/{{ g.id }}/delete"
             onsubmit="return confirm('¿Seguro que quieres eliminar {{ g.title }}? Esta acción no se puede deshacer');">
@@ -55,7 +48,5 @@
 
   </div>
   {% endfor %}
-
 </div>
-
 {% endblock %}

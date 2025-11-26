@@ -6,13 +6,14 @@
   <!-- IMAGEN PRINCIPAL -->
   <div class="md:w-1/2">
     {% if images %}
-      <img src="{{ images[0].file_url }}" 
-           class="rounded-lg shadow-lg w-full h-[420px] object-cover">
-      <!-- MINIATURAS OPCIONALES -->
+      <img src="/media/{{ images[0].file_path }}" 
+           class="rounded-lg shadow-lg w-full h-[420px] object-cover" alt="{{ game.title }}">
+      <!-- miniaturas (opcional) -->
       <div class="flex gap-2 mt-3 flex-wrap">
         {% for img in images %}
-          <img src="{{ img.thumb_url }}"
-               class="w-20 h-20 rounded-lg object-cover border border-[#2a2a2d]">
+          <img src="/media/{{ img.thumb_path }}"
+               class="w-20 h-20 rounded-lg object-cover border border-[#2a2a2d]"
+               alt="{{ game.title }}">
         {% endfor %}
       </div>
     {% else %}
@@ -58,7 +59,7 @@
   </div>
 </div>
 
-<!-- ✅ BLOQUE DE BENEFICIOS + HORARIOS -->
+<!-- BLOQUE DE BENEFICIOS + HORARIOS -->
 <div class="mt-12 p-6 rounded-xl bg-[#1a1a1d] border border-[#2a2a2d] shadow-lg">
 
   <h2 class="text-2xl font-bold text-yellow-400 mb-4">

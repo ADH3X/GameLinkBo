@@ -20,7 +20,7 @@
             hover:-translate-y-1 transition duration-200 block">
 
     {% if g.cover %}
-      <img src="{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4" alt="{{ g.title }}">
+      <img src="/media/{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4" alt="{{ g.title }}">
     {% else %}
       <div class="bg-gray-800 rounded-lg w-full h-60 flex justify-center items-center text-gray-500">
         Sin imagen
