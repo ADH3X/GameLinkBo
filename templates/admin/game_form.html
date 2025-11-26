@@ -59,14 +59,16 @@
     <div>
       <label class="block text-gray-300 mb-2">Imágenes (puedes seleccionar varias)</label>
       <input type="file" name="images" multiple accept=".jpg,.jpeg,.png,.webp" class="w-full text-sm text-gray-300">
-      <p class="text-xs text-gray-500 mt-1">Se genera automáticamente una miniatura 512×512. La primera imagen subido será portada.</p>
+      <p class="text-xs text-gray-500 mt-1">
+        Se genera automáticamente una miniatura 512×512. La primera imagen subida será portada.
+      </p>
     </div>
 
     {% if images %}
       <div class="grid grid-cols-2 gap-3">
         {% for im in images %}
         <div class="bg-[#1a1a1d] p-2 rounded">
-          <img src="/{{ im.thumb_path }}" class="rounded mb-2 w-full h-32 object-cover">
+          <img src="{{ im.thumb_url }}" class="rounded mb-2 w-full h-32 object-cover">
           <div class="flex gap-2">
             <form method="post" action="/admin/images/{{ im.id }}/cover">
               <button class="text-xs px-2 py-1 rounded {% if im.is_cover %}bg-green-600{% else %}bg-gray-600{% endif %}">

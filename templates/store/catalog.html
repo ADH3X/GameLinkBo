@@ -4,7 +4,7 @@
 <h1 class="text-3xl font-extrabold mb-10 text-yellow-400">Catálogo</h1>
 
 <form method="get" class="flex gap-3 mb-10">
-  <input type="text" name="q" placeholder="Buscar juego..." value="{{ q }}"
+  <input type="text" name="q" placeholder="Buscar juego..." value="{{ q or '' }}"
          class="flex-1 px-4 py-2 rounded-lg bg-[#1d1d20] text-gray-200 border border-gray-700 focus:ring focus:ring-yellow-500 outline-none">
   <button class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-2 rounded-lg">
     Buscar
@@ -20,7 +20,7 @@
             hover:-translate-y-1 transition duration-200 block">
 
     {% if g.cover %}
-      <img src="/{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4">
+      <img src="{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4" alt="{{ g.title }}">
     {% else %}
       <div class="bg-gray-800 rounded-lg w-full h-60 flex justify-center items-center text-gray-500">
         Sin imagen
@@ -29,7 +29,7 @@
 
     <h3 class="text-xl font-semibold mb-1">{{ g.title }}</h3>
 
-    {% if g.discount_pct > 0 %}
+    {% if g.discount_pct and g.discount_pct > 0 %}
       <p class="text-yellow-400 text-sm font-bold">-{{ g.discount_pct|int }}% OFF</p>
     {% endif %}
 
