@@ -1,47 +1,107 @@
 {% extends "layout.html" %}
+
 {% block content %}
-<div class="flex justify-between items-center mb-6">
-  <h1 class="text-3xl font-bold text-yellow-400">Juegos</h1>
-  <a href="/admin/games/new" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-4 py-2 rounded">Agregar juego</a>
-</div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {% for g in games %}
-  <div class="bg-[#1a1a1d] p-4 rounded-lg shadow">
-    
-    {% if g.cover %}
-      <img src="{{ g.cover }}" class="rounded mb-3 w-full h-48 object-cover">
-    {% else %}
-      <div class="bg-gray-800 h-48 flex items-center justify-center text-gray-500 rounded">Sin imagen</div>
-    {% endif %}
+<h1 class="text-3xl font-extrabold mb-6 text-yellow-400">Juegos</h1>
 
-    <h3 class="text-lg font-semibold">{{ g.title }}</h3>
-    <p class="text-sm text-gray-400">{{ g.platform_name }}</p>
-    <p class="text-white font-bold">Bs {{ "%.2f"|format(g.base_price) }}</p>
-
-    <div class="flex items-center gap-2 mt-3">
-      <form method="post" action="/admin/games/{{ g.id }}/publish">
-        <button class="px-3 py-1 rounded text-sm
-          {% if g.is_published %}bg-green-600 hover:bg-green-700{% else %}bg-gray-600 hover:bg-gray-700{% endif %}">
-          {% if g.is_published %}Ocultar{% else %}Publicar{% endif %}
-        </button>
-      </form>
-
-      <a href="/admin/games/{{ g.id }}/edit"
-         class="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700">
-        Editar
-      </a>
-
-      <form method="post"
-            action="/admin/games/{{ g.id }}/delete"
-            onsubmit="return confirm('¿Seguro que quieres eliminar {{ g.title }}? Esta acción no se puede deshacer');">
-        <button class="px-3 py-1 rounded text-sm bg-red-600 hover:bg-red-700">
-          Eliminar
-        </button>
-      </form>
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+  <!-- Buscador -->
+  <form method="get" action="{{ url_for('admin_games') }}" class="w-full sm:w-96">
+    <div class="flex">
+      <input
+        type="text"
+        name="q"
+        value="{{ q or '' }}"
+        placeholder="Buscar por título o slug..."
+        class="flex-1 px-4 py-2.5 rounded-l-lg bg-[#1b1b20] text-gray-200
+               border border-gray-700 focus:ring-2 focus:ring-yellow-500
+               outline-none text-sm"
+      >
+      <button
+        type="submit"
+        class="px-4 py-2.5 rounded-r-lg bg-yellow-500 text-black text-sm font-semibold
+               hover:bg-yellow-400 border border-yellow-500"
+      >
+        Buscar
+      </button>
     </div>
+  </form>
 
-  </div>
-  {% endfor %}
+  <!-- Botón agregar -->
+  <a href="{{ url_for('admin_games_new') }}"
+     class="inline-flex items-center justify-center px-4 py-2.5 rounded-lg
+            bg-yellow-500 text-black text-sm font-semibold hover:bg-yellow-400">
+    Agregar juego
+  </a>
 </div>
+
+{% if q %}
+  <p class="text-sm text-gray-400 mb-4">
+    Mostrando resultados para: <span class="font-semibold">"{{ q }}"</span>
+    — {{ games|length }} encontrado(s)
+  </p>
+{% endif %}
+
+{% if games %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {% for g in games %}
+      <div class="bg-[#14141d] p-4 rounded-lg shadow border border-[#232326] flex flex-col">
+        <!-- Imagen -->
+        <div class="mb-3 bg-gray-900 rounded-lg h-56 flex items-center justify-center overflow-hidden">
+          {% if g.cover %}
+            <img src="{{ g.cover }}" alt="{{ g.title }}" class="w-full h-full object-cover">
+          {% else %}
+            <div class="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+              Sin imagen
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Info -->
+        <h2 class="text-lg font-semibold mb-1 text-white line-clamp-2">
+          {{ g.title }}
+        </h2>
+        <p class="text-sm text-gray-400 mb-1">
+          {{ g.platform_name }}
+        </p>
+        <p class="text-sm text-gray-300 mb-3">
+          Bs {{ '%.2f'|format(g.base_price) }}
+        </p>
+
+        <div class="mt-auto flex items-center gap-2">
+          {% if g.is_published %}
+            <form method="post" action="{{ url_for('admin_games_publish', game_id=g.id) }}">
+              <button class="px-3 py-1 rounded bg-green-600 text-xs text-white hover:bg-green-700">
+                Ocultar
+              </button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('admin_games_publish', game_id=g.id) }}">
+              <button class="px-3 py-1 rounded bg-yellow-600 text-xs text-white hover:bg-yellow-700">
+                Publicar
+              </button>
+            </form>
+          {% endif %}
+
+          <a href="{{ url_for('admin_games_edit', game_id=g.id) }}"
+             class="px-3 py-1 rounded bg-blue-600 text-xs text-white hover:bg-blue-700">
+            Editar
+          </a>
+
+          <form method="post" action="{{ url_for('admin_delete_game', game_id=g.id) }}"
+                onsubmit="return confirm('¿Seguro que quieres eliminar este juego?');">
+            <button class="px-3 py-1 rounded bg-red-600 text-xs text-white hover:bg-red-700">
+              Eliminar
+            </button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-gray-400 text-sm">
+    No se encontraron juegos.
+  </p>
+{% endif %}
+
 {% endblock %}

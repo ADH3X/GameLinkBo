@@ -214,7 +214,11 @@ def admin_dashboard():
 @login_required
 def admin_games():
     db = get_db()
-    rows = db.execute("""
+
+    q = request.args.get("q", "").strip()
+    params = []
+
+    base_sql = """
         SELECT g.id,
                g.slug,
                g.title,
@@ -227,9 +231,24 @@ def admin_games():
                p.name AS platform_name
         FROM games g
         JOIN platforms p ON p.id = g.platform_id
-        ORDER BY g.created_at DESC
-    """).fetchall()
-    return render_template("admin/game_list.html", games=rows)
+    """
+
+    # Si hay búsqueda, filtramos por título o slug (similar, no exacto)
+    if q:
+        base_sql += " WHERE LOWER(g.title) LIKE ? OR LOWER(g.slug) LIKE ?"
+        like_q = f"%{q.lower()}%"
+        params.extend([like_q, like_q])
+
+    base_sql += " ORDER BY g.created_at DESC"
+
+    rows = db.execute(base_sql, params).fetchall()
+
+    return render_template(
+        "admin/game_list.html",
+        games=rows,
+        q=q  # para rellenar el input
+    )
+
 
 @app.route("/admin/games/new", methods=["GET", "POST"])
 @login_required
