@@ -313,8 +313,10 @@ def admin_games_edit(game_id):
     game = db.execute("SELECT * FROM games WHERE id=?", (game_id,)).fetchone()
     if not game:
         abort(404)
+
     platforms = db.execute("SELECT id, name FROM platforms ORDER BY name").fetchall()
     genres    = db.execute("SELECT id, name FROM genres ORDER BY name").fetchall()
+
     current_genres = {
         r["genre_id"]
         for r in db.execute(
@@ -322,12 +324,13 @@ def admin_games_edit(game_id):
             (game_id,)
         ).fetchall()
     }
+
     images = db.execute("""
-        SELECT *,
+        SELECT * ,
                '/media/' || thumb_path AS thumb_url,
                '/media/' || file_path  AS file_url
         FROM game_images
-        WHERE game_id=?
+        WHERE game_id = ?
         ORDER BY is_cover DESC, order_idx ASC
     """, (game_id,)).fetchall()
 
@@ -345,6 +348,8 @@ def admin_games_edit(game_id):
             return redirect(url_for("admin_games_edit", game_id=game_id))
 
         slug = slugify(title)
+
+        # Actualizar datos básicos del juego
         db.execute("""
             UPDATE games
                SET slug=?,
@@ -368,7 +373,7 @@ def admin_games_edit(game_id):
             game_id,
         ))
 
-        # sync géneros
+        # Sincronizar géneros
         for gid in (genre_ids - current_genres):
             db.execute(
                 "INSERT OR IGNORE INTO game_genres (game_id, genre_id) VALUES (?,?)",
@@ -380,32 +385,59 @@ def admin_games_edit(game_id):
                 (game_id, gid)
             )
 
+        # ============================
+        # IMÁGENES NUEVAS
+        # ============================
         files = request.files.getlist("images")
-        order_idx = db.execute(
-            "SELECT IFNULL(MAX(order_idx),-1) FROM game_images WHERE game_id=?",
-            (game_id,)
-        ).fetchone()[0] + 1
-        for f in files:
-            if f and allowed_file(f.filename):
-                try:
-                    file_path, thumb_path = save_image(f, slug)
-                    img_id = gen_id("img")
-                    db.execute("""
-                        INSERT INTO game_images
-                            (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
-                        VALUES (?,?,?,?,?,?,?)
-                    """, (
-                        img_id,
-                        game_id,
-                        os.path.basename(file_path),
-                        file_path,
-                        thumb_path,
-                        0,
-                        order_idx,
-                    ))
-                    order_idx += 1
-                except Exception as e:
-                    flash(f"Error subiendo imagen: {e}", "error")
+
+        # ¿El admin subió al menos una imagen válida?
+        have_new_files = any(f and allowed_file(f.filename) for f in files)
+
+        if have_new_files:
+            # 1) Borrar TODAS las imágenes actuales del juego (DB + archivos)
+            old_imgs = db.execute(
+                "SELECT id, file_path, thumb_path FROM game_images WHERE game_id=?",
+                (game_id,)
+            ).fetchall()
+
+            for row in old_imgs:
+                file_safe_delete(row["file_path"])
+                file_safe_delete(row["thumb_path"])
+
+            db.execute("DELETE FROM game_images WHERE game_id=?", (game_id,))
+
+            # 2) Insertar las nuevas con el sistema /data/uploads/... 
+            order_idx = 0
+            cover_set = False
+
+            for f in files:
+                if f and allowed_file(f.filename):
+                    try:
+                        file_path, thumb_path = save_image(f, slug)
+                        img_id = gen_id("img")
+
+                        is_cover = 1 if not cover_set else 0
+
+                        db.execute("""
+                            INSERT INTO game_images
+                                (id, game_id, file_name, file_path, thumb_path, is_cover, order_idx)
+                            VALUES (?,?,?,?,?,?,?)
+                        """, (
+                            img_id,
+                            game_id,
+                            os.path.basename(file_path),
+                            file_path,
+                            thumb_path,
+                            is_cover,
+                            order_idx,
+                        ))
+
+                        if is_cover == 1:
+                            cover_set = True
+                        order_idx += 1
+
+                    except Exception as e:
+                        flash(f"Error subiendo imagen: {e}", "error")
 
         db.commit()
         flash("Juego actualizado", "success")
@@ -418,7 +450,7 @@ def admin_games_edit(game_id):
         game=game,
         current_genres=current_genres,
         images=images,
-        form_action=url_for("admin_games_edit", game_id=game_id)
+        form_action=url_for("admin_games_edit", game_id=game_id),
     )
 
 @app.post("/admin/games/<game_id>/publish")
