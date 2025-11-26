@@ -10,7 +10,7 @@
       Catálogo de juegos
     </h1>
     <p class="text-sm sm:text-base text-gray-400 max-w-2xl">
-      Filtra por plataforma o busca por nombre. Ideal para que el cliente navegue rápido desde su celular.
+      Filtra por plataforma o busca por nombre. Pensado para que el cliente navegue rápido desde su celular.
     </p>
   </header>
 
@@ -77,7 +77,7 @@
           <a
             href="{{ url_for('catalog', platform=p.id, q=q) }}"
             class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs sm:text-sm border
-                   {% if platform and platform|int == p.id %}
+                   {% if platform == p.id %}
                      bg-yellow-500 text-black border-yellow-500
                    {% else %}
                      bg-[#111118] text-gray-300 border-gray-700 hover:border-yellow-500 hover:text-yellow-300
@@ -101,14 +101,11 @@
           No se encontraron juegos para tu búsqueda.
         {% else %}
           Mostrando <span class="font-semibold text-gray-200">{{ games|length }}</span> juego(s)
-          {% if q %} para “<span class="font-semibold text-gray-200">{{ q }}</span>”{% endif %}
-          {% if platform %}
-            en <span class="font-semibold text-gray-200">
-              {{
-                (platforms | selectattr("id", "equalto", platform|int) | first).name
-                if platforms|length > 0 else ''
-              }}
-            </span>
+          {% if q %}
+            para “<span class="font-semibold text-gray-200">{{ q }}</span>”
+          {% endif %}
+          {% if platform and platform in platform_map %}
+            en <span class="font-semibold text-gray-200">{{ platform_map[platform] }}</span>
           {% endif %}
         {% endif %}
       </p>
@@ -174,11 +171,10 @@
                 {{ g.title }}
               </h2>
 
-              <!-- PLATAFORMA + TAG -->
+              <!-- PLATAFORMA -->
               <div class="flex items-center justify-between text-[11px] mt-0.5">
                 <span class="px-2 py-0.5 rounded-full bg-[#111827] text-gray-300 border border-gray-700/70">
-                  {{ (platforms | selectattr("id", "equalto", g.platform_id) | first).name
-                     if platforms|length > 0 else 'Plataforma' }}
+                  {{ platform_map.get(g.platform_id, 'Plataforma') }}
                 </span>
               </div>
 
@@ -218,7 +214,6 @@
 </div>
 
 <style>
-  /* Ocultar scrollbar fea en chips móviles */
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

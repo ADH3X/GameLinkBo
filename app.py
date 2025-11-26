@@ -556,10 +556,13 @@ def catalog():
     q        = request.args.get("q", "").strip()
     platform = request.args.get("platform", "").strip() or None
 
-    # Para filtros (todas las plataformas)
+    # Todas las plataformas para los chips
     platforms = db.execute(
         "SELECT id, name FROM platforms ORDER BY name"
     ).fetchall()
+
+    # Mapa id -> nombre para usar cómodo en Jinja
+    platform_map = {p["id"]: p["name"] for p in platforms}
 
     search_engine = db.execute(
         "SELECT value FROM settings WHERE key='search_engine'"
@@ -601,9 +604,11 @@ def catalog():
         "store/catalog.html",
         games=games,
         q=q,
-        platform=platform,
-        platforms=platforms
+        platform=platform,          # string, ej. 'plat_xbox'
+        platforms=platforms,
+        platform_map=platform_map   # dict: {'plat_xbox': 'Xbox', ...}
     )
+
 
 
 @app.route("/game/<slug>")
