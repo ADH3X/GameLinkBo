@@ -554,7 +554,12 @@ def home():
 def catalog():
     db = get_db()
     q        = request.args.get("q", "").strip()
-    platform = request.args.get("platform")
+    platform = request.args.get("platform", "").strip() or None
+
+    # Para filtros (todas las plataformas)
+    platforms = db.execute(
+        "SELECT id, name FROM platforms ORDER BY name"
+    ).fetchall()
 
     search_engine = db.execute(
         "SELECT value FROM settings WHERE key='search_engine'"
@@ -566,6 +571,7 @@ def catalog():
                g.title,
                g.base_price,
                g.discount_pct,
+               g.platform_id,
                (SELECT '/media/' || thumb_path
                   FROM game_images
                  WHERE game_id = g.id AND is_cover = 1
@@ -588,9 +594,17 @@ def catalog():
             like_q = f"%{q}%"
             params.extend([like_q, like_q])
 
-    base_sql += " ORDER BY g.created_at DESC LIMIT 50;"
+    base_sql += " ORDER BY g.created_at DESC LIMIT 60;"
     games = db.execute(base_sql, params).fetchall()
-    return render_template("store/catalog.html", games=games, q=q, platform=platform)
+
+    return render_template(
+        "store/catalog.html",
+        games=games,
+        q=q,
+        platform=platform,
+        platforms=platforms
+    )
+
 
 @app.route("/game/<slug>")
 def game_detail(slug):

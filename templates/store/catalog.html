@@ -1,43 +1,226 @@
 {% extends "layout.html" %}
+
 {% block content %}
 
-<h1 class="text-3xl font-extrabold mb-10 text-yellow-400">Catálogo</h1>
+<div class="space-y-4 sm:space-y-6">
 
-<form method="get" class="flex gap-3 mb-10">
-  <input type="text" name="q" placeholder="Buscar juego..." value="{{ q }}"
-         class="flex-1 px-4 py-2 rounded-lg bg-[#1d1d20] text-gray-200 border border-gray-700 focus:ring focus:ring-yellow-500 outline-none">
-  <button class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-2 rounded-lg">
-    Buscar
-  </button>
-</form>
+  <!-- TÍTULO + DESCRIPCIÓN -->
+  <header class="space-y-1 sm:space-y-2">
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-yellow-400">
+      Catálogo de juegos
+    </h1>
+    <p class="text-sm sm:text-base text-gray-400 max-w-2xl">
+      Filtra por plataforma o busca por nombre. Ideal para que el cliente navegue rápido desde su celular.
+    </p>
+  </header>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+  <!-- BUSCADOR + FILTROS (STICKY EN MOBILE) -->
+  <section
+    class="sticky top-[62px] z-40 -mx-4 sm:mx-0 bg-[#0c0c0e]/95 backdrop-blur-md border-y border-[#1e1e22] py-3 sm:py-4"
+  >
+    <div class="max-w-7xl mx-auto px-4 sm:px-0 space-y-3">
 
-  {% for g in games %}
-  <a href="/game/{{ g.slug }}"
-     class="bg-[#18181b] p-4 rounded-xl shadow-lg border border-[#232326]
-            hover:border-yellow-500 hover:shadow-yellow-500/20
-            hover:-translate-y-1 transition duration-200 block">
+      <!-- BUSCADOR -->
+      <form
+        action="{{ url_for('catalog') }}"
+        method="get"
+        class="flex gap-2 items-center"
+      >
+        <input
+          type="text"
+          name="q"
+          value="{{ q or '' }}"
+          placeholder="Buscar juego, por ejemplo: Call of Duty, FIFA..."
+          class="flex-1 px-3 py-2.5 rounded-lg bg-[#111118] text-sm sm:text-base
+                 text-gray-100 border border-gray-700/70
+                 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+        >
+        {% if platform %}
+          <input type="hidden" name="platform" value="{{ platform }}">
+        {% endif %}
+        <button
+          type="submit"
+          class="hidden sm:inline-flex items-center justify-center px-4 py-2.5 rounded-lg
+                 bg-yellow-500 hover:bg-yellow-400 font-semibold text-black text-sm transition"
+        >
+          Buscar
+        </button>
+      </form>
 
-    {% if g.cover %}
-      <img src="{{ g.cover }}" class="rounded-lg w-full h-60 object-cover mb-4">
-    {% else %}
-      <div class="bg-gray-800 rounded-lg w-full h-60 flex justify-center items-center text-gray-500">
-        Sin imagen
+      <!-- BOTÓN BUSCAR SOLO MÓVIL -->
+      <div class="sm:hidden">
+        <button
+          onclick="this.closest('form')?.submit()"
+          class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-semibold text-sm"
+        >
+          Buscar
+        </button>
+      </div>
+
+      <!-- FILTROS DE PLATAFORMA (CHIPS HORIZONTALES) -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+        <!-- Chip 'Todas' -->
+        <a
+          href="{{ url_for('catalog', q=q) }}"
+          class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs sm:text-sm border
+                 {% if not platform %}
+                   bg-yellow-500 text-black border-yellow-500
+                 {% else %}
+                   bg-[#111118] text-gray-300 border-gray-700 hover:border-yellow-500 hover:text-yellow-300
+                 {% endif %}
+                 transition whitespace-nowrap"
+        >
+          Todas
+        </a>
+
+        {% for p in platforms %}
+          <a
+            href="{{ url_for('catalog', platform=p.id, q=q) }}"
+            class="flex-shrink-0 px-3 py-1.5 rounded-full text-xs sm:text-sm border
+                   {% if platform and platform|int == p.id %}
+                     bg-yellow-500 text-black border-yellow-500
+                   {% else %}
+                     bg-[#111118] text-gray-300 border-gray-700 hover:border-yellow-500 hover:text-yellow-300
+                   {% endif %}
+                   transition whitespace-nowrap"
+          >
+            {{ p.name }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTADOS -->
+  <section class="space-y-3 sm:space-y-4">
+
+    <!-- RESUMEN -->
+    <div class="flex items-center justify-between text-xs sm:text-sm text-gray-400">
+      <p>
+        {% if games|length == 0 %}
+          No se encontraron juegos para tu búsqueda.
+        {% else %}
+          Mostrando <span class="font-semibold text-gray-200">{{ games|length }}</span> juego(s)
+          {% if q %} para “<span class="font-semibold text-gray-200">{{ q }}</span>”{% endif %}
+          {% if platform %}
+            en <span class="font-semibold text-gray-200">
+              {{
+                (platforms | selectattr("id", "equalto", platform|int) | first).name
+                if platforms|length > 0 else ''
+              }}
+            </span>
+          {% endif %}
+        {% endif %}
+      </p>
+    </div>
+
+    {% if games|length > 0 %}
+      <!-- GRID DE JUEGOS -->
+      <div
+        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
+      >
+        {% for g in games %}
+          {% set has_cover = g.cover is not none %}
+          {% set final_price = (g.base_price or 0) * (1 - (g.discount_pct or 0) / 100) %}
+
+          <a
+            href="{{ url_for('game_detail', slug=g.slug) }}"
+            class="group bg-[#18181b] border border-[#27272a] hover:border-yellow-500/80
+                   rounded-2xl overflow-hidden flex flex-col
+                   shadow-[0_0_0_1px_rgba(0,0,0,0.4)] hover:shadow-[0_0_20px_rgba(234,179,8,0.25)]
+                   transition-transform duration-150 hover:-translate-y-1"
+          >
+            <!-- IMAGEN / PLACEHOLDER -->
+            <div class="relative aspect-[4/5] w-full bg-[#0f0f12] overflow-hidden">
+              {% if has_cover %}
+                <img
+                  src="{{ g.cover }}"
+                  alt="{{ g.title }}"
+                  class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200"
+                  loading="lazy"
+                >
+              {% else %}
+                <div
+                  class="w-full h-full flex flex-col items-center justify-center
+                         bg-gradient-to-br from-[#111827] via-[#020617] to-[#0b1120]"
+                >
+                  <span class="text-xs text-gray-500 tracking-wide uppercase">
+                    Sin imagen
+                  </span>
+                  <span class="mt-1 text-[10px] text-gray-600">
+                    {{ g.title[:22] }}{% if g.title|length > 22 %}…{% endif %}
+                  </span>
+                </div>
+              {% endif %}
+
+              {% if g.discount_pct and g.discount_pct > 0 %}
+                <div class="absolute top-2 left-2">
+                  <span
+                    class="px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-semibold text-white shadow-md"
+                  >
+                    -{{ "%.0f"|format(g.discount_pct) }}%
+                  </span>
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- BODY -->
+            <div class="flex-1 flex flex-col px-3.5 py-3 sm:px-4 sm:py-3.5 gap-1.5">
+
+              <!-- TÍTULO -->
+              <h2
+                class="text-[13px] sm:text-sm font-semibold text-gray-100 leading-snug line-clamp-2 group-hover:text-yellow-300"
+              >
+                {{ g.title }}
+              </h2>
+
+              <!-- PLATAFORMA + TAG -->
+              <div class="flex items-center justify-between text-[11px] mt-0.5">
+                <span class="px-2 py-0.5 rounded-full bg-[#111827] text-gray-300 border border-gray-700/70">
+                  {{ (platforms | selectattr("id", "equalto", g.platform_id) | first).name
+                     if platforms|length > 0 else 'Plataforma' }}
+                </span>
+              </div>
+
+              <!-- PRECIO -->
+              <div class="mt-1.5 flex items-end justify-between">
+                <div class="space-y-0.5">
+                  {% if g.discount_pct and g.discount_pct > 0 %}
+                    <p class="text-xs text-gray-500 line-through">
+                      Bs {{ "%.2f"|format(g.base_price or 0) }}
+                    </p>
+                    <p class="text-sm sm:text-base font-bold text-green-400">
+                      Bs {{ "%.2f"|format(final_price) }}
+                    </p>
+                  {% else %}
+                    <p class="text-sm sm:text-base font-bold text-gray-100">
+                      Bs {{ "%.2f"|format(g.base_price or 0) }}
+                    </p>
+                  {% endif %}
+                </div>
+
+                <span
+                  class="inline-flex items-center justify-center px-2 py-1 rounded-full
+                         bg-[#111827] text-[10px] sm:text-[11px] text-gray-300
+                         border border-gray-700/80 group-hover:border-yellow-400 group-hover:text-yellow-300"
+                >
+                  Ver detalle
+                </span>
+              </div>
+
+            </div>
+          </a>
+        {% endfor %}
       </div>
     {% endif %}
 
-    <h3 class="text-xl font-semibold mb-1">{{ g.title }}</h3>
-
-    {% if g.discount_pct > 0 %}
-      <p class="text-yellow-400 text-sm font-bold">-{{ g.discount_pct|int }}% OFF</p>
-    {% endif %}
-
-    <p class="text-white font-bold text-lg">Bs {{ "%.2f"|format(g.base_price) }}</p>
-
-  </a>
-  {% endfor %}
-
+  </section>
 </div>
+
+<style>
+  /* Ocultar scrollbar fea en chips móviles */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
 
 {% endblock %}
