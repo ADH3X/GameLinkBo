@@ -1,52 +1,238 @@
 {% extends "layout.html" %}
+
 {% block content %}
 
-<h1 class="text-4xl font-extrabold mb-12 text-yellow-400 tracking-tight">
-  Novedades
-</h1>
+{# ============================================================================
+   HOME – HERO + NOVEDADES
+   ========================================================================== #}
 
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-10">
+{# Usamos una sola variable para las novedades, da igual si se llama games o newest_games #}
+{% set novedades = games if games is defined else newest_games %}
 
-  {% for g in games %}
-  <a href="/game/{{ g.slug }}"
-     class="group bg-[#131316] p-4 rounded-2xl shadow-xl border border-[#1f1f22]
-            hover:border-yellow-500 hover:shadow-yellow-500/30
-            hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 block">
+<div class="space-y-6 sm:space-y-8">
 
-    <!-- COVER -->
-    {% if g.cover %}
-      <div class="rounded-xl overflow-hidden mb-4">
-        <img 
-          src="{{ g.cover }}"
-          class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+  {# =========================
+     HERO PRINCIPAL
+     ========================== #}
+  <section
+    class="relative overflow-hidden rounded-3xl bg-gradient-to-br
+           from-[#020617] via-[#0b1120] to-[#111827]
+           border border-[#1f2937] shadow-[0_0_40px_rgba(0,0,0,0.6)]
+           px-4 py-6 sm:px-8 sm:py-8"
+  >
+    <!-- Glow decorativo -->
+    <div class="pointer-events-none absolute -top-24 -right-24 w-56 h-56 bg-yellow-500/10 rounded-full blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl"></div>
+
+    <div class="relative flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8">
+      <!-- Texto principal -->
+      <div class="flex-1 space-y-2 sm:space-y-3">
+        <p class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/40 border border-yellow-500/40 text-[11px] sm:text-xs text-yellow-300 uppercase tracking-wide">
+          Nuevo en GameLinkBo
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        </p>
+
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight">
+          Novedades y ofertas de juegos digitales
+        </h1>
+
+        <p class="text-sm sm:text-base text-gray-300 max-w-xl">
+          Juegos 100% digitales, soporte por WhatsApp y cuentas listas para jugar.
+          Pensado para que el cliente entre, elija rápido y salga jugando.
+        </p>
+
+        <!-- CTA principal -->
+        <div class="flex flex-wrap items-center gap-3 pt-1">
+          <a
+            href="{{ url_for('catalog') }}"
+            class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl
+                   bg-yellow-500 hover:bg-yellow-400 text-black text-sm sm:text-base
+                   font-semibold shadow-[0_10px_30px_rgba(234,179,8,0.45)]
+                   transition-transform duration-150 hover:-translate-y-0.5"
+          >
+            Ver catálogo completo
+          </a>
+
+          <div class="flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Entrega por WhatsApp en minutos
+          </div>
+        </div>
+
+        <!-- Filtros rápidos de plataforma -->
+        <div class="flex flex-wrap gap-2 pt-2 sm:pt-3">
+          <a
+            href="{{ url_for('catalog', platform='plat_xbox') }}"
+            class="px-3 py-1.5 rounded-full bg-black/40 border border-gray-700 text-xs sm:text-sm text-gray-200 hover:border-green-400 hover:text-green-300 transition"
+          >
+            Juegos Xbox
+          </a>
+          <a
+            href="{{ url_for('catalog', platform='plat_ps') }}"
+            class="px-3 py-1.5 rounded-full bg-black/40 border border-gray-700 text-xs sm:text-sm text-gray-200 hover:border-indigo-400 hover:text-indigo-300 transition"
+          >
+            Juegos PlayStation
+          </a>
+          <a
+            href="{{ url_for('catalog', platform='plat_steam') }}"
+            class="px-3 py-1.5 rounded-full bg-black/40 border border-gray-700 text-xs sm:text-sm text-gray-200 hover:border-sky-400 hover:text-sky-300 transition"
+          >
+            Juegos Steam / PC
+          </a>
+        </div>
+      </div>
+
+      <!-- Lado derecho: mini mockup / tarjeta destacada -->
+      <div class="hidden sm:block flex-1 max-w-xs ml-auto">
+        <div class="relative rounded-2xl bg-[#020617] border border-[#1f2937] p-3 shadow-lg">
+          <div class="overflow-hidden rounded-xl bg-[#020617] aspect-[16/10] mb-3">
+            <div class="w-full h-full bg-[radial-gradient(circle_at_top,_#22c55e22,_#020617)] flex items-center justify-center">
+              <span class="text-sm text-gray-300">
+                Vista previa del catálogo
+              </span>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <p class="text-xs font-semibold text-yellow-300 line-clamp-2">
+              EA Sports FC 25 – Xbox One / XS
+            </p>
+            <p class="text-[11px] text-gray-400">
+              Desde <span class="text-emerald-400 font-bold">Bs 105.00</span>
+            </p>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-gray-500">
+                +100 juegos en catálogo
+              </span>
+              <span class="px-2 py-1 rounded-full bg-emerald-500/15 text-[10px] text-emerald-300 border border-emerald-500/40">
+                Calidad asegurada
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# =========================
+     SECCIÓN NOVEDADES
+     ========================== #}
+  <section class="space-y-3 sm:space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl sm:text-2xl font-extrabold text-yellow-400">
+          Novedades
+        </h2>
+        <p class="text-xs sm:text-sm text-gray-400">
+          Los últimos juegos que agregamos a GameLinkBo.
+        </p>
+      </div>
+
+      {% if novedades and novedades|length > 0 %}
+        <a
+          href="{{ url_for('catalog') }}"
+          class="hidden sm:inline-flex text-xs sm:text-sm text-gray-300 hover:text-yellow-300"
         >
-      </div>
-    {% else %}
-      <div class="bg-gray-800 rounded-xl w-full h-64 flex justify-center items-center text-gray-500">
-        Sin imagen
-      </div>
-    {% endif %}
+          Ver todo el catálogo →
+        </a>
+      {% endif %}
+    </div>
 
-    <!-- TITLE -->
-    <h3 class="text-xl font-semibold mb-1 group-hover:text-yellow-400 transition">
-      {{ g.title }}
-    </h3>
-
-    <!-- DISCOUNT -->
-    {% if g.discount_pct > 0 %}
-      <p class="text-yellow-400 text-sm font-bold mb-1">
-        -{{ g.discount_pct|int }}% OFF
+    {% if not novedades or novedades|length == 0 %}
+      <p class="text-sm text-gray-400">
+        Aún no hay novedades cargadas, pero el catálogo completo ya está disponible.
       </p>
+    {% else %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+
+        {% for g in novedades %}
+          {% set has_cover = g.cover is not none %}
+          {% set final_price = (g.base_price or 0) * (1 - (g.discount_pct or 0) / 100) %}
+
+          <a
+            href="{{ url_for('game_detail', slug=g.slug) }}"
+            class="group bg-[#18181b] border border-[#27272a] hover:border-yellow-500/80
+                   rounded-2xl overflow-hidden flex flex-col
+                   shadow-[0_0_0_1px_rgba(0,0,0,0.4)] hover:shadow-[0_0_20px_rgba(234,179,8,0.25)]
+                   transition-transform duration-150 hover:-translate-y-1"
+          >
+            <!-- IMAGEN -->
+            <div class="relative aspect-[4/5] w-full bg-[#0f0f12] overflow-hidden">
+              {% if has_cover %}
+                <img
+                  src="{{ g.cover }}"
+                  alt="{{ g.title }}"
+                  class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200"
+                  loading="lazy"
+                >
+              {% else %}
+                <div
+                  class="w-full h-full flex flex-col items-center justify-center
+                         bg-gradient-to-br from-[#111827] via-[#020617] to-[#0b1120]"
+                >
+                  <span class="text-xs text-gray-500 tracking-wide uppercase">
+                    Sin imagen
+                  </span>
+                  <span class="mt-1 text-[10px] text-gray-600">
+                    {{ g.title[:22] }}{% if g.title|length > 22 %}…{% endif %}
+                  </span>
+                </div>
+              {% endif %}
+
+              {% if g.discount_pct and g.discount_pct > 0 %}
+                <div class="absolute top-2 left-2">
+                  <span
+                    class="px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-semibold text-white shadow-md"
+                  >
+                    -{{ "%.0f"|format(g.discount_pct) }}%
+                  </span>
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- BODY -->
+            <div class="flex-1 flex flex-col px-3.5 py-3 sm:px-4 sm:py-3.5 gap-1.5">
+              <h3
+                class="text-[13px] sm:text-sm font-semibold text-gray-100 leading-snug line-clamp-2 group-hover:text-yellow-300"
+              >
+                {{ g.title }}
+              </h3>
+
+              <div class="mt-1.5 flex items-end justify-between">
+                <div class="space-y-0.5">
+                  {% if g.discount_pct and g.discount_pct > 0 %}
+                    <p class="text-xs text-gray-500 line-through">
+                      Bs {{ "%.2f"|format(g.base_price or 0) }}
+                    </p>
+                    <p class="text-sm sm:text-base font-bold text-green-400">
+                      Bs {{ "%.2f"|format(final_price) }}
+                    </p>
+                  {% else %}
+                    <p class="text-sm sm:text-base font-bold text-gray-100">
+                      Bs {{ "%.2f"|format(g.base_price or 0) }}
+                    </p>
+                  {% endif %}
+                </div>
+
+                <span
+                  class="inline-flex items-center justify-center px-2 py-1 rounded-full
+                         bg-[#111827] text-[10px] sm:text-[11px] text-gray-300
+                         border border-gray-700/80 group-hover:border-yellow-400 group-hover:text-yellow-300"
+                >
+                  Ver detalle
+                </span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+
+      </div>
     {% endif %}
-
-    <!-- PRICE -->
-    <p class="text-white font-extrabold text-lg tracking-tight">
-      Bs {{ "%.2f"|format(g.base_price) }}
-    </p>
-
-  </a>
-  {% endfor %}
-
+  </section>
 </div>
+
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
 
 {% endblock %}
