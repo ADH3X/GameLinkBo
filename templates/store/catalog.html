@@ -15,6 +15,7 @@
   </header>
 
   <!-- BUSCADOR + FILTROS (STICKY EN MOBILE) -->
+  <!-- BUSCADOR + FILTROS (STICKY EN MOBILE) -->
   <section
     class="sticky top-[62px] z-40 -mx-4 sm:mx-0 bg-[#0c0c0e]/95 backdrop-blur-md border-y border-[#1e1e22] py-3 sm:py-4"
   >
@@ -24,38 +25,32 @@
       <form
         action="{{ url_for('catalog') }}"
         method="get"
-        class="flex gap-2 items-center"
+        class="flex flex-col sm:flex-row gap-2 items-stretch"
       >
-        <input
-          type="text"
-          name="q"
-          value="{{ q or '' }}"
-          placeholder="Buscar juego, por ejemplo: Call of Duty, FIFA..."
-          class="flex-1 px-3 py-2.5 rounded-lg bg-[#111118] text-sm sm:text-base
-                 text-gray-100 border border-gray-700/70
-                 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-        >
-        {% if platform %}
-          <input type="hidden" name="platform" value="{{ platform }}">
-        {% endif %}
+        <div class="flex-1">
+          <input
+            type="text"
+            name="q"
+            value="{{ q or '' }}"
+            placeholder="Buscar juego, por ejemplo: Call of Duty, FIFA..."
+            class="w-full px-3 py-2.5 rounded-lg bg-[#111118] text-sm sm:text-base
+                   text-gray-100 border border-gray-700/70
+                   focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+          >
+          {% if platform %}
+            <input type="hidden" name="platform" value="{{ platform }}">
+          {% endif %}
+        </div>
+
         <button
           type="submit"
-          class="hidden sm:inline-flex items-center justify-center px-4 py-2.5 rounded-lg
-                 bg-yellow-500 hover:bg-yellow-400 font-semibold text-black text-sm transition"
+          class="w-full sm:w-auto sm:px-4 sm:py-2.5 px-4 py-2.5 rounded-lg
+                 bg-yellow-500 hover:bg-yellow-400 font-semibold text-black text-sm
+                 flex items-center justify-center transition"
         >
           Buscar
         </button>
       </form>
-
-      <!-- BOTÓN BUSCAR SOLO MÓVIL -->
-      <div class="sm:hidden">
-        <button
-          onclick="this.closest('form')?.submit()"
-          class="w-full py-2.5 rounded-lg bg-yellow-500 text-black font-semibold text-sm"
-        >
-          Buscar
-        </button>
-      </div>
 
       <!-- FILTROS DE PLATAFORMA (CHIPS HORIZONTALES) -->
       <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
@@ -90,6 +85,7 @@
       </div>
     </div>
   </section>
+
 
   <!-- RESULTADOS -->
   <section class="space-y-3 sm:space-y-4">
