@@ -17,9 +17,8 @@
     {% if g.cover %}
       <div class="rounded-xl overflow-hidden mb-4">
         <img 
-          src="/media/{{ g.cover }}" 
+          src="{{ g.cover }}"
           class="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
-          alt="{{ g.title }}"
         >
       </div>
     {% else %}

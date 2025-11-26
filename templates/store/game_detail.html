@@ -6,16 +6,8 @@
   <!-- IMAGEN PRINCIPAL -->
   <div class="md:w-1/2">
     {% if images %}
-      <img src="/media/{{ images[0].file_path }}" 
-           class="rounded-lg shadow-lg w-full h-[420px] object-cover" alt="{{ game.title }}">
-      <!-- miniaturas (opcional) -->
-      <div class="flex gap-2 mt-3 flex-wrap">
-        {% for img in images %}
-          <img src="/media/{{ img.thumb_path }}"
-               class="w-20 h-20 rounded-lg object-cover border border-[#2a2a2d]"
-               alt="{{ game.title }}">
-        {% endfor %}
-      </div>
+      <img src="{{ images[0].file_url }}" 
+           class="rounded-lg shadow-lg w-full h-[420px] object-cover">
     {% else %}
       <div class="bg-gray-800 h-[420px] flex items-center justify-center text-gray-500 rounded-lg">
         Sin imagen
@@ -48,7 +40,6 @@
       {% endif %}
     </div>
 
-    <!-- BOTÓN WHATSAPP -->
     <a href="{{ wa_link }}" target="_blank"
        class="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 
               text-white px-6 py-3 rounded-lg font-semibold transition">
@@ -59,7 +50,6 @@
   </div>
 </div>
 
-<!-- BLOQUE DE BENEFICIOS + HORARIOS -->
 <div class="mt-12 p-6 rounded-xl bg-[#1a1a1d] border border-[#2a2a2d] shadow-lg">
 
   <h2 class="text-2xl font-bold text-yellow-400 mb-4">
