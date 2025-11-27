@@ -557,13 +557,15 @@ def catalog():
     q = (request.args.get("q") or "").strip()
     platform = request.args.get("platform") or None
 
-    # plataformas para los filtros y el mapa id -> nombre
+    # Plataformas para los filtros
     platforms = db.execute(
         "SELECT id, name FROM platforms ORDER BY name"
     ).fetchall()
     platform_map = {p["id"]: p["name"] for p in platforms}
 
-    # ====== ARMAR WHERE DINÁMICO ======
+    # =========================
+    #   WHERE dinámico
+    # =========================
     where = ["g.is_published = 1"]
     params = []
 
@@ -573,14 +575,15 @@ def catalog():
 
     if q:
         like = f"%{q}%"
-        where.append(
-            "(g.title LIKE ? OR g.search_name LIKE ?)"
-        )
+        # IMPORTANTE: solo columnas que EXISTEN en tu tabla
+        where.append("(g.title LIKE ? OR g.slug LIKE ?)")
         params.extend([like, like])
 
     where_clause = " AND ".join(where)
 
-    # ====== CONSULTA SIN LIMIT, TRAE TODOS ======
+    # =========================
+    #   Consulta SIN LIMIT
+    # =========================
     games = db.execute(f"""
         SELECT
             g.id,
@@ -603,7 +606,6 @@ def catalog():
         ORDER BY g.created_at DESC, g.title ASC
     """, params).fetchall()
 
-    # ====== RENDER ======
     return render_template(
         "store/catalog.html",
         games=games,
