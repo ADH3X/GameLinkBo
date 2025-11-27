@@ -553,62 +553,65 @@ def home():
 @app.route("/games")
 def catalog():
     db = get_db()
-    q        = request.args.get("q", "").strip()
-    platform = request.args.get("platform", "").strip() or None
 
-    # Todas las plataformas para los chips
+    q = (request.args.get("q") or "").strip()
+    platform = request.args.get("platform") or None
+
+    # plataformas para los filtros y el mapa id -> nombre
     platforms = db.execute(
         "SELECT id, name FROM platforms ORDER BY name"
     ).fetchall()
-
-    # Mapa id -> nombre para usar cómodo en Jinja
     platform_map = {p["id"]: p["name"] for p in platforms}
 
-    search_engine = db.execute(
-        "SELECT value FROM settings WHERE key='search_engine'"
-    ).fetchone()["value"]
-
-    base_sql = """
-        SELECT g.id,
-               g.slug,
-               g.title,
-               g.base_price,
-               g.discount_pct,
-               g.platform_id,
-               (SELECT '/media/' || thumb_path
-                  FROM game_images
-                 WHERE game_id = g.id AND is_cover = 1
-                 LIMIT 1) AS cover
-        FROM games g
-        WHERE g.is_published = 1
-    """
+    # ====== ARMAR WHERE DINÁMICO ======
+    where = ["g.is_published = 1"]
     params = []
 
     if platform:
-        base_sql += " AND g.platform_id = ?"
+        where.append("g.platform_id = ?")
         params.append(platform)
 
     if q:
-        if search_engine == "fts":
-            base_sql += " AND g.rowid IN (SELECT rowid FROM games_fts WHERE games_fts MATCH ?)"
-            params.append(q)
-        else:
-            base_sql += " AND (g.title LIKE ? OR g.description LIKE ?)"
-            like_q = f"%{q}%"
-            params.extend([like_q, like_q])
+        like = f"%{q}%"
+        where.append(
+            "(g.title LIKE ? OR g.search_name LIKE ?)"
+        )
+        params.extend([like, like])
 
-    base_sql += " ORDER BY g.created_at DESC LIMIT 60;"
-    games = db.execute(base_sql, params).fetchall()
+    where_clause = " AND ".join(where)
 
+    # ====== CONSULTA SIN LIMIT, TRAE TODOS ======
+    games = db.execute(f"""
+        SELECT
+            g.id,
+            g.slug,
+            g.title,
+            g.platform_id,
+            g.base_price,
+            g.discount_pct,
+            gi.thumb_path,
+            CASE
+              WHEN gi.thumb_path IS NOT NULL
+              THEN '/media/' || gi.thumb_path
+              ELSE NULL
+            END AS cover
+        FROM games g
+        LEFT JOIN game_images gi
+              ON gi.game_id = g.id
+             AND gi.is_cover = 1
+        WHERE {where_clause}
+        ORDER BY g.created_at DESC, g.title ASC
+    """, params).fetchall()
+
+    # ====== RENDER ======
     return render_template(
         "store/catalog.html",
         games=games,
-        q=q,
-        platform=platform,          # string, ej. 'plat_xbox'
         platforms=platforms,
-        platform_map=platform_map   # dict: {'plat_xbox': 'Xbox', ...}
+        platform_map=platform_map,
+        platform=platform,
+        q=q,
     )
-
 
 
 @app.route("/game/<slug>")
